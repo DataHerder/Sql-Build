@@ -58,15 +58,6 @@ abstract class SqlBuilderBootstrapAbstract {
 	}
 
 
-
-	protected function mysql( $dsn )
-	{
-		// initializes mysql connection and sets up environment
-		// variables for the SqlClass to use to query with
-		
-	}
-
-
 	protected function ci_plugin( CI_Model $ci_model )
 	{
 		

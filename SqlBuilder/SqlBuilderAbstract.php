@@ -52,6 +52,7 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 
 	protected $database_type = 'mysql';
 	protected $syntax = 'mysql';
+	protected static $joins = array();
 
 	// DbApi reference for statements
 	protected static $db;
@@ -306,14 +307,14 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 	protected function tableJoin($table, $on, $type)
 	{
 		$this->checkForJoins();
-		if ( ! is_string($table) ) {
-			throw new SqlAbstractException('String expected for table in '.$type.'Join');
+		if (!is_string($table) && !$this->isAssoc($table)) {
+			throw new SqlAbstractException('String or associative array (alias) expected for table in '.$type.'Join');
 		}
 		if (! is_string($on) ) {
 			throw new SqlAbstractException('INNER JOIN clause ON expects string.');
 		}
-		$table = $this->checkTableFormat($table);
-		$this->joins[] = array($type,$table,$on);
+		$table = $table;
+		self::$joins[] = array($type,$table,$on);
 		return $this;
 	}
 
@@ -348,6 +349,7 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 	 */
 	public function innerJoin( $table=null, $on=null )
 	{
+		//dbg_array($this);
 		return $this->allJoins($table, $on, 'inner');
 	}
 
@@ -432,22 +434,22 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 	{
 		// sniff myself you know where
 		// mmmm... smells good
-		if ( $this instanceof SqlBuilderSelect ) {
+		if ( $this->SqlClass instanceof SqlBuilderSelect ) {
 			// this is a select object
 			return "select";
 		}
-		elseif ( $this instanceof SqlBuilderUpdate ) {
+		elseif ( $this->SqlClass instanceof SqlBuilderUpdate ) {
 			// this is an update object
 			return 'update';
 		}
-		elseif ( $this instanceof SqlBuilderInsert ) {
+		elseif ( $this->SqlClass instanceof SqlBuilderInsert ) {
 			// this is an insert object
 			return 'insert';
 		}
-		elseif ( $this instanceof SqlBuilderExpression ) {
+		elseif ( $this->SqlClass instanceof SqlBuilderExpression ) {
 			return 'expression';
 		}
-		elseif ( $this instanceof SqlBuilderDelete ) {
+		elseif ( $this->SqlClass instanceof SqlBuilderDelete ) {
 			return 'delete';
 		}
 	}

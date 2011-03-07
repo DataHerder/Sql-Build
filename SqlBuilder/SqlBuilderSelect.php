@@ -52,7 +52,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	protected $user_range = array();
 	protected $current_alias = '';
 	protected $joinThese = false;
-	protected $joins = array();
+	//protected $joins = array();
 	protected $joinWhereType = '';
 
 	protected $have = '';
@@ -613,9 +613,13 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 		//build joins if they exists
 		$join_string = '';
-		if ( !empty($this->joins) ) {
-			for ( $i =0; $i < count($this->joins); $i++ ) {
-				$join = $this->joins[$i];
+		if ( !empty(parent::$joins) ) {
+			for ( $i =0; $i < count(parent::$joins); $i++ ) {
+				$join = parent::$joins[$i];
+				if (is_array($join[1])) {
+					$a = key($join[1]);
+					$join[1] = $this->tableFormat($join[1][$a]).' AS '.$a;
+				}
 				if ( $join[0] == 'join' ) {
 					$join_string.= ' JOIN '.$join[1].' ON '.$join[2];
 				}
@@ -748,17 +752,5 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		return $where;
 	}
 
-
-
-	/**
-	 * will close the mysql connection on destroy if
-	 * a mysql connection was made by the class
-	 */
-	function __destruct()
-	{
-		if ( is_resource($this->dlink) && $this->database_type === 'mysql' ) {
-			mysql_close($this->dlink);
-		}
-	}
 }
 

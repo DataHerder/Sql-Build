@@ -79,6 +79,7 @@ final class Sql extends SqlBuilderAbstract
 
 	protected $SqlClass = null;
 	protected $bootstrap;
+	//protected $joins = array();
 	public $DbApi = null;
 
 
@@ -249,6 +250,7 @@ final class Sql extends SqlBuilderAbstract
 		else {
 			throw new SqlException('Method does not exist for SqlBuilder');
 		}
+		return $this;
 	}
 
 	/**
