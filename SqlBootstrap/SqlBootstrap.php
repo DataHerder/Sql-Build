@@ -19,7 +19,7 @@ class SqlBootstrap extends SqlBuilderBootstrapAbstract {
 		);
 		// either one or array of connections
 		$dsn = array('postgres'=>array($pg_dsn), 'mysql'=>array($my_dsn));
-		$this->databaseSetup($dsn);
+		#$this->databaseSetup($dsn);
 		//this preformats tables
 		$this->preformatTable(function( $table ) {
 			$v = substr($table,0,1);

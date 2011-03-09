@@ -26,6 +26,9 @@
  * @since       File available since
  */
 
+require_once('SqlBuilderWhereAbstract.php');
+require_once('SqlBuilderJoinsAbstract.php');
+
 
 interface SqlBuilderInterface
 {
@@ -35,6 +38,8 @@ interface SqlBuilderInterface
 	public function isAssoc(array $array);
 	public static function expr( $type, $val = null);
 }
+
+
 
 
 /**
@@ -47,17 +52,40 @@ interface SqlBuilderInterface
  * @author Paul Carlton
  * @link my.public.repo
  */
-abstract class SqlBuilderAbstract implements SqlBuilderInterface
+abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements SqlBuilderInterface
 {
 
 	protected $database_type = 'mysql';
 	protected $syntax = 'mysql';
-	protected static $joins = array();
 
 	// DbApi reference for statements
-	protected static $db;
+	//protected static $db;
+	public $db;
 
 	protected $func_format = null;
+
+
+	/**
+	 * Constructer class, determines if we need to create a mysql connection
+	 * This does not create a mysql connection on default, parameters need to be
+	 * passed
+	 * 
+	 * @access public
+	 * @param mixed $dsn
+	 * @return object $this
+	 */
+	public function __construct( $bootstrap = null )
+	{
+		if ( $bootstrap != null ) {
+			$this->func_format = $bootstrap->getPreformatTableFunc();
+		}
+		$this->range = range('a', 'z');
+		return $this;
+	}
+
+
+
+
 
 	/**
 	 * An important element here where this static function
@@ -101,6 +129,10 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 	public function tableFormat( $table )
 	{
 		//first check if there is a period
+		//if ( $table instanceof SqlBuilderSelect || $table instanceof SqlBuilderExpression ) {
+		if ( $table instanceof Sql || $table instanceof SqlBuilderExpression ) {
+			return '('.$table.')';
+		}
 		$table = preg_replace('/`|"/', '', $table);
 		$period = false;
 		if ( substr($table, 0, 1) == '.' ) {
@@ -109,7 +141,7 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 		} else {
 			$new_t = $table;
 		}
-		if ( strpos($new_t,'.')!== false && !$table instanceof SqlBuilderSelect ) {
+		if ( strpos($new_t,'.')!== false ) {
 			$tmp = explode('.', $new_t);
 			$table = $this->_tableFormatHelper($tmp[0]). '.' . $this->_tableFormatHelper($tmp[1]);
 			return $table;
@@ -128,10 +160,7 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 	 * @return string
 	 */
 	protected function _tableFormatHelper($table) {
-		if ( $table instanceof SqlBuilderSelect || $table instanceof SqlBuilderExpression ) {
-			return '('.$table.')';
-		}
-		elseif ($this->syntax == 'mysql'){
+		if ($this->syntax == 'mysql'){
 			return '`' . trim($this->_bootstrapTableFormat($table)) . '`';
 		}
 		elseif ($this->syntax == 'postgres') {
@@ -190,12 +219,12 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 			return $value;
 		}
 		elseif ( is_string($value) ){
-			$value = "'" . self::$db->escape($value) . "'";
+			$value = "'" . $this->db->escape($value) . "'";
 		}
 		elseif ( $value instanceof SqlBuilderExpression ) {
 			$value = $value.'';
 		}
-		elseif ($value instanceof SqlBuilderSelect) {
+		elseif ($value instanceof Sql) {
 			$value = '(' . $value . ')';
 		}
 		else {
@@ -217,40 +246,29 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 		if ( $column == '*' ) {
 			return $column;
 		}
-		$column = preg_replace('/`|"/','',$column);
-		if ( strpos($column, '.') !== false ) {
+		elseif ($column instanceof Sql || $column instanceof SqlBuilderExpression ) {
+			return '(' . $column . ')';
+		}
+		elseif ( strpos($column, '.') !== false ) {
+			$column = preg_replace('/`|"/','',$column);
 			$column = $this->checkTableFormat($column);
 		}
-		$column = self::$db->formatColumn($column);
+		else {
+			$column = $this->db->formatColumn($column);
+		}
 		return $column;
 	}
 
 
 
 
-	/**
-	 * Constructer class, determines if we need to create a mysql connection
-	 * This does not create a mysql connection on default, parameters need to be
-	 * passed
-	 * 
-	 * @access public
-	 * @param mixed $dsn
-	 * @return object $this
-	 */
-	public function __construct( $bootstrap = null )
-	{
-		if ( $bootstrap != null ) {
-			$this->func_format = $bootstrap->getPreformatTableFunc();
-		}
-		$this->range = range('a', 'z');
-		return $this;
-	}
+
 
 
 	protected function getFieldType()
 	{
-		//$type = parent::$db->getConnectionType();
-		$type = self::$db->getConnectionType();
+		$type = $this->db->getConnectionType();
+		$type = 'mysql';
 		$field_type = '`';
 		if ($type == 'mysql') {
 			$field_type = '`';
@@ -277,181 +295,5 @@ abstract class SqlBuilderAbstract implements SqlBuilderInterface
 
 
 
-
-	/**
-	 * allJoins is a protected function that acts as the wrapper for 
-	 * tableJoin, that way all joins go through the same function
-	 * to reduce code
-	 * 
-	 * @access protected
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	protected function allJoins( $table=null, $on=null, $type )
-	{
-		return $this->tableJoin($table, $on, $type);
-	}
-
-
-	/**
-	 * This function sniffs for type and throws exceptions if
-	 * data is not presented correctly for the join
-	 * 
-	 * @access protected
-	 * @param string $table
-	 * @param string $on
-	 * @param string $type
-	 * @return object $this
-	 */
-	protected function tableJoin($table, $on, $type)
-	{
-		$this->checkForJoins();
-		if (!is_string($table) && !$this->isAssoc($table)) {
-			throw new SqlAbstractException('String or associative array (alias) expected for table in '.$type.'Join');
-		}
-		if (! is_string($on) ) {
-			throw new SqlAbstractException('INNER JOIN clause ON expects string.');
-		}
-		$table = $table;
-		self::$joins[] = array($type,$table,$on);
-		return $this;
-	}
-
-
-
-
-
-	/**
-	 * checkForJoins makes sure joins are performed only on certain classes
-	 * by throwing an exception if it does not perform
-	 * 
-	 * @return null
-	 */
-	protected function checkForJoins()
-	{
-		$a = $this->sniffMyself();
-		if ( $a != 'select' && $a != 'update' ) {
-			throw new SqlAbstractException('Can not perform joins anything else but updates and selects');
-		}
-	}
-
-
-
-
-	/**
-	 * inner join to join wrapper
-	 * 
-	 * @access public
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	public function innerJoin( $table=null, $on=null )
-	{
-		//dbg_array($this);
-		return $this->allJoins($table, $on, 'inner');
-	}
-
-
-
-
-	/**
-	 * outer join to join wrapper
-	 * 
-	 * @access public
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	public function outerJoin( $table=null, $on=null )
-	{
-		return $this->allJoins($table, $on, 'outer');
-	}
-	
-
-
-
-
-	/**
-	 * left join to join wrapper
-	 * 
-	 * @access public
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	public function leftJoin( $table=null, $on=null )
-	{
-		return $this->allJoins($table, $on, 'left');
-	}
-	
-
-
-
-	/**
-	 * right join to join wrapper
-	 * 
-	 * @access public
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	public function rightJoin( $table=null, $on=null )
-	{
-		return $this->allJoins($table, $on, 'right');
-	}
-	
-
-
-
-	/**
-	 * join to join wrapper
-	 * 
-	 * @access public
-	 * @param string $table
-	 * @param string on
-	 * @return object $this
-	 */
-	public function join( $table=null, $on=null )
-	{
-		return $this->allJoins($table, $on, '');
-	}
-
-
-
-
-	/**
-	 * the point of this function is to constrain what certain
-	 * public functions are allowable depending on the Class type
-	 * for instance joins.  You can join on updates and selects
-	 * but not inserts
-	 * 
-	 * @access protected
-	 * @return string (select|update|insert|Expresssion|Delete)
-	 */
-	protected function sniffMyself()
-	{
-		// sniff myself you know where
-		// mmmm... smells good
-		if ( $this->SqlClass instanceof SqlBuilderSelect ) {
-			// this is a select object
-			return "select";
-		}
-		elseif ( $this->SqlClass instanceof SqlBuilderUpdate ) {
-			// this is an update object
-			return 'update';
-		}
-		elseif ( $this->SqlClass instanceof SqlBuilderInsert ) {
-			// this is an insert object
-			return 'insert';
-		}
-		elseif ( $this->SqlClass instanceof SqlBuilderExpression ) {
-			return 'expression';
-		}
-		elseif ( $this->SqlClass instanceof SqlBuilderDelete ) {
-			return 'delete';
-		}
-	}
 
 }

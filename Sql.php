@@ -29,7 +29,7 @@
 
 
 //sql builder requires
-require_once('SqlBuilder/SqlBuilderAbstract.php');
+require_once('SqlBuilder/Abstracts/SqlBuilderAbstract.php');
 require_once('SqlBuilder/SqlBuilderSelect.php');
 require_once('SqlBuilder/SqlBuilderUpdate.php');
 require_once('SqlBuilder/SqlBuilderInsert.php');
@@ -74,7 +74,7 @@ require_once('SqlBootstrap/SqlBootstrap.php');
  * @link        my.public.repo
  * @since       File available since
  */
-final class Sql extends SqlBuilderAbstract
+final class Sql //extends SqlBuilderAbstract
 {
 
 	protected $SqlClass = null;
@@ -103,14 +103,11 @@ final class Sql extends SqlBuilderAbstract
 		// sql object created a bootstrap will be created, we don't need that
 		// we only need an element FROM the bootstrap, so call it first
 		$this->bootstrap = new SqlBootstrap;
-		parent::__construct($this->bootstrap);
-		if ( !is_object($this->DbApi) ) {
-			$this->DbApi = new SqlDatabase;
-			parent::$db =& $this->DbApi;
-			$dsn = $this->bootstrap->load('dsn');
-			if ( is_array($dsn) || is_string($dsn) ) {
-				$this->DbApi->setup($dsn);
-			}
+		$this->DbApi = new SqlDatabase;
+		//$this->$db =& $this->DbApi;
+		$dsn = $this->bootstrap->load('dsn');
+		if ( is_array($dsn) || is_string($dsn) ) {
+			$this->DbApi->setup($dsn);
 		}
 		if ( $type == null ) {
 			return; //do nothing
@@ -170,6 +167,13 @@ final class Sql extends SqlBuilderAbstract
 	}
 
 
+
+	public static function gi() {
+		$B = new Sql;
+		return $B;
+	}
+
+
 	/**
 	 * This essentially wraps the classes together with the magic method __call
 	 * 
@@ -179,8 +183,12 @@ final class Sql extends SqlBuilderAbstract
 	 */
 	public function __call( $method, $params=array() )
 	{
-
 		$syntax_type = $this->DbApi->getConnectionType();
+		if ( $method == 'gi') {
+			//get instance
+			$B = new Sql;
+			return $B;
+		}
 		if ( !$syntax_type ) {
 			$syntax_type = 'mysql';
 		}
@@ -200,7 +208,7 @@ final class Sql extends SqlBuilderAbstract
 			throw new SqlException('Method setSyntax can only be called after statement object has been instantiated within Sql');
 		}
 		if (is_object($this->SqlClass)){
-			$this->SqlClass->_setSyntax($syntax_type);
+			//$this->SqlClass->_setSyntax($syntax_type);
 		}
 		if ( $method == 'get' ) {
 			$this->__destroyObject();
@@ -221,13 +229,14 @@ final class Sql extends SqlBuilderAbstract
 			}
 		}
 
-		if ( preg_match("/^\w+join$/", $method) ) {
-			array_unshift($params, $method);
-			$this->SqlClass = call_user_func_array(array($this->SqlClass, 'allJoins'),$params);
-			return $this;
+		if ( preg_match("/join$/i", $method) ) {
+			$type = $this->sniffMyself();
+			if ($type != 'select' && $type != 'update') {
+				throw new SqlException('Joins can only be called on selects and updates.');
+			}
 		}
-		elseif ( method_exists($this->SqlClass, $method) ) {
-			$this->SqlClass = call_user_func_array(array($this->SqlClass, $method), $params);
+		if ( method_exists($this->SqlClass, $method) ) {
+			call_user_func_array(array($this->SqlClass, $method), $params);
 			return $this;
 		}
 		// this is an explicit database call so route it to the database wrapper
@@ -299,6 +308,41 @@ final class Sql extends SqlBuilderAbstract
 			// it is true, unset calls the destruct method
 			// and in fact destroys the object
 			unset($this->SqlClass);
+		}
+	}
+
+
+
+	/**
+	 * the point of this function is to constrain what certain
+	 * public functions are allowable depending on the Class type
+	 * for instance joins.  You can join on updates and selects
+	 * but not inserts
+	 * 
+	 * @access protected
+	 * @return string (select|update|insert|Expresssion|Delete)
+	 */
+	protected function sniffMyself()
+	{
+		// sniff myself you know where
+		// mmmm... smells good
+		if ( $this->SqlClass instanceof SqlBuilderSelect ) {
+			// this is a select object
+			return "select";
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderUpdate ) {
+			// this is an update object
+			return 'update';
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderInsert ) {
+			// this is an insert object
+			return 'insert';
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderExpression ) {
+			return 'expression';
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderDelete ) {
+			return 'delete';
 		}
 	}
 

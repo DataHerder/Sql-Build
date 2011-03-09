@@ -45,15 +45,10 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	protected $tables = array();
 	protected $aliases = array();
 	protected $fields = array();
-	protected $where = array();
-	protected $joinWhere = array();
 	protected $increment = 0;
 	protected $range = array();
 	protected $user_range = array();
 	protected $current_alias = '';
-	protected $joinThese = false;
-	//protected $joins = array();
-	protected $joinWhereType = '';
 
 	protected $have = '';
 
@@ -74,38 +69,14 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 
 
-	/**
-	 * This essentially wraps the classes together with the magic method __call
-	 * 
-	 * @access public
-	 * @param (string) $method
-	 * @param (array) $params
-	 * @return (object|string|array) $this->SqlClass
-	 */
-	public function __call( $method, $params=array() )
-	{
-		if ( preg_match("/^\w+join$/", $method) ) {
-			array_unshift($params, $method);
-			return call_user_func_array(array($this, 'allJoins'),$params);
-		}
-		elseif ( method_exists($this->SqlClass, $method) ) {
-			return call_user_func_array(array($this, $method), $params);
-		}
-		else {
-			throw new SqlSelectException('Method does not exist for SqlBuilder');
-		}
-	}
-
-
-
-	/**
-	 * __invoke  select is the only one that supports this method
-	 */
 	public function __invoke( $table = null, $fields = null, $where = null )
 	{
 		if ( ! is_string($table) ) {
 			//do nothing
-			return $this;
+			//used for embedding sql instances
+			$new_instance = new SqlBuilderSelect;
+			return $new_instance;
+			//return $this;
 		}
 		if ( !is_string($fields) && $fields != null ) {
 			throw new SqlBuilderSelectException('Invoke requires the table columns of the from clause to be a string delimited by a comma');
@@ -138,8 +109,9 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		else {
 			$this->fields[] = '*';
 		}
-		if ( is_string($where) ) {
-			$this->where[] = $where;
+		if ( !is_null($where) ) {
+			//$this->where[] = $where;
+			$this->where($where);
 		}
 		return $this;
 	}
@@ -156,18 +128,17 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	 */
 	public function select( $table = null, $fields = null, $where = null )
 	{
-		if ( $table == null ) {
+		if ( is_null($table) ) {
 			return $this;
 		}
 		$fields_ = array();
-		if ( ! is_string($table) && !$table instanceof SqlBuilderSelect) {
+		if (!is_string($table)) {
 			throw new SqlBuilderSelectException('SqlBuilderSelect select method only requires strings or null values for table.  If you want more complexity, use the "from" method');
 		}
-		if ( is_string($fields) ) {
-			$fields = preg_replace('/`|"/','',$fields);
-			if ( strpos($fields, ',') !== false ) {
+		if (is_string($fields)) {
+			if (strpos($fields, ',') !== false) {
 				$tmp = explode(',', $fields);
-				for( $i=0;$i<count($tmp);$i++ ) {
+				for ($i=0; $i<count($tmp); $i++) {
 					$fields_[] = $tmp[$i];
 				}
 			}
@@ -175,7 +146,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 				$fields_[] = $fields;
 			}
 		}
-		elseif ( is_array( $fields ) ) {
+		elseif (is_array($fields)) {
 			$fields_ = array();
 			for ( $i=0;$i<count($fields);$i++ ) {
 				$fields_[] = $fields[$i];
@@ -184,11 +155,15 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		else {
 			$fields_[] = '*';
 		}
+		if (!is_null($where)) {
+			$this->where($where);
+		}
 		$this->tables[$this->range[$this->increment]] = $table;
 		$this->fields[$this->range[$this->increment]] = $fields_;
 		$this->increment++;
 		return $this;
 	}
+
 
 
 
@@ -209,7 +184,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 			if ( $this->isAssoc($tables) ) {
 				foreach( $tables as $alias => $table ) {
 					$this->aliases[] = $alias;
-					$this->tables[$alias] = $table;
+					$this->tables[$alias] = $table; //$this->stdClassIt($table);
 					if ( is_null($fields) ) {
 						$this->fields[$alias] = '*';
 					}
@@ -218,6 +193,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 
 				if ( is_null($fields) ) {
+					//dbg_array($this->tables);
 					return $this;
 				}
 				elseif ( is_string($fields) ) {
@@ -263,141 +239,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 
 
-	/**
-	 * joinThese is for the where clause by creating
-	 * adjacent where's to join together in one larger
-	 * where clause... ex:
-	 * 
-	 * ( ( ( (`column1` = 'data1') AND (`column2` = 'data2' ) ) OR (`column3` = 'data3' ) ) AND
-	 * ( ( (`column4` = 'data4') AND (`column5` = 'data5' ) ) OR (`column6` = 'data6' ) ) )
-	 * 
-	 * @access public
-	 * @param string $with
-	 * @return object $this
-	 */
-	public function joinThese( $with = 'and' )
-	{
-		if ( $with != 'and' && $with != 'or' ) {
-			throw new SqlBuilderSelectException('joinThese requires a where with statement (and|or)');
-		}
-		$this->joinThese = true;
-		$this->joinWhereType = $with;
-		return $this;
-	}
 
-
-
-	/**
-	 * joinTheseFinish will concatenate joinThese
-	 * 
-	 * @access public
-	 * @param string $type
-	 * @return object $this
-	 */
-	public function joinTheseFinish( $type = 'and' )
-	{
-		if ( $this->joinThese === false ) return $this;
-		$this->joinThese = false;
-		$str = $this->buildWhere( $this->joinWhere );
-		if ( $type == 'or' ) {
-			$str = '||('.$str.')';
-		}
-		array_push($this->where,$str);
-		return $this;
-	}
-
-
-
-	/**
-	 * joinWhere joins the current array of wheres
-	 * 
-	 * @access public
-	 * @param null
-	 * @return object $this
-	 */
-	public function joinWhere()
-	{
-		if ( $this->joinThese === true ) {
-			$wheres = $this->joinWhere;
-			$str = $this->buildWhere($wheres);
-			$this->joinWhere = array();
-			$this->joinWhere[] = $str;
-			return $this;
-		}
-		$str = $this->buildWhere();
-		$this->where = array();
-		$this->where[] = $str;
-		return $this;
-	}
-
-
-
-	/**
-	 * orWhere, creates an orWhere clause instead of an and
-	 * 
-	 * @access public
-	 * @param string $str
-	 * @param mixed $q string array
-	 * @return object $this
-	 */
-	public function orWhere( $str=null, $q=null ) {
-		$this->where($str,$q);
-		if ( $this->joinThese ) {
-			$current_where = array_pop($this->joinWhere);
-			$current_where = '||'.$current_where;
-			array_push($this->joinWhere,$current_where);
-			return $this;
-		}
-		$current_where = array_pop($this->where);
-		$current_where = '||'.$current_where;
-		array_push($this->where,$current_where);
-		return $this;
-	}
-
-
-
-	/**
-	 * where method, creates the where clause
-	 * 
-	 * @access public
-	 * @param string $str
-	 * @param mixed $q string array
-	 * @return object $this
-	 */
-	public function where( $str=null, $q=null )
-	{
-		if ( is_null($str) ) {
-			$str = '1 = 1';
-		}
-		if ( is_null($q) ) {
-			//do nothing
-		}
-		elseif ( !is_array($q) ) {
-			if ( is_string($q)){
-				//xss eventually goes here
-				$q = "'" . $this->db->escape($q) . "'";
-			}
-			$str = preg_replace('/\?/',$q,$str,1);
-		}
-		elseif ( is_array($q) ) {
-			for ( $i=0; $i < count($q); $i++ ) {
-				if ( !is_numeric($q[$i]) ) {
-					$q[$i] = "'" . $this->db->escape($q[$i]) . "'";
-				}
-				$str = preg_replace('/\?/',$q[$i],$str,1);
-			}
-		}
-		else {
-			throw new SqlBuilderSelectException('Invalid inputs for where statement, requires null or string values');
-		}
-		if ( $this->joinThese === true ) {
-			array_push($this->joinWhere, $str);
-		}
-		else {
-			array_push($this->where,$str);
-		}
-		return $this;
-	}
 
 
 
@@ -418,6 +260,10 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		$this->have = $expr;
 		return $this;
 	}
+
+
+
+
 
 
 	/**
@@ -450,6 +296,8 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		}
 		return $this;
 	}
+
+
 
 
 
@@ -612,24 +460,9 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		}
 
 		//build joins if they exists
-		$join_string = '';
-		if ( !empty(parent::$joins) ) {
-			for ( $i =0; $i < count(parent::$joins); $i++ ) {
-				$join = parent::$joins[$i];
-				if (is_array($join[1])) {
-					$a = key($join[1]);
-					$join[1] = $this->tableFormat($join[1][$a]).' AS '.$a;
-				}
-				if ( $join[0] == 'join' ) {
-					$join_string.= ' JOIN '.$join[1].' ON '.$join[2];
-				}
-				else {
-					$join_string.= ' ' . strtoupper($join[0]). ' JOIN ' . $join[1] . ' ON ' . $join[2];
-				}
-			}
-		}
-		if ( $join_string != '' ) {
-			$sql .= $join_string;
+		$join_string = $this->buildJoins();
+		if ($join_string != '') {
+			$sql.= $join_string;
 		}
 
 
@@ -718,39 +551,18 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 
 	/**
-	 * buildWhere function builds the where for __toString() and joinThese function
+	 * destroy, must be created to ensure that the variables housed
+	 * in the abstract are also emptied to ensure clean sqls
 	 * 
-	 * @access protected
-	 * @param string $replace
-	 * @return string $where
+	 * @access public
+	 * @param null
+	 * @return null
 	 */
-	protected function buildWhere( $replace = null )
+	public function __destruct()
 	{
-		if ( empty($this->where) && $replace == null) {
-			return null;
-		}
-		//this is for joining where statements together
-		elseif (is_array($replace)) {
-			$wheres = $replace;
-		}
-		else {
-			$wheres = $this->where;
-		}
-		$where = '';
-		for ($i=0; $i<count($wheres); $i++) {
-			if ( substr($wheres[$i],0,2) == '||' ) {
-				$wheres[$i] = substr($wheres[$i],2);
-				$or = true;
-			} else { $or = false; }
-			if ( $where != '' && $or == true ) {
-				$where .= ' OR ';
-			} elseif ( $where != '' && $or == false ) {
-				$where .= ' AND ';
-			}
-			$where .= '(' . $wheres[$i] . ')';
-		}
-		return $where;
+		$this->joins = array();
 	}
+
 
 }
 

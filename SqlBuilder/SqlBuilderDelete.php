@@ -41,7 +41,6 @@ final class SqlBuilderDelete extends SqlBuilderAbstract
 {
 	protected $sql;
 	protected $table = '';
-	protected $where = '';
 	protected $type = 'DELETE';
 
 	public function __construct($bootstrap = null) {
@@ -74,7 +73,10 @@ final class SqlBuilderDelete extends SqlBuilderAbstract
 			throw new Exception('DELETE expects WHERE statement to be a string or null value.');
 		}
 		$this->table = $table;
-		$this->where = $where;
+		//$this->where = $where;
+		if (!is_null($where)) {
+			$this->where($where);
+		}
 		return $this;
 	}
 
@@ -85,10 +87,17 @@ final class SqlBuilderDelete extends SqlBuilderAbstract
 		}
 		else {
 			$sql= "DELETE FROM ".$this->tableFormat($this->table);
+			$where = $this->buildWhere();
 			if ($this->where != null && $this->where != ''){
-				$sql.= ' WHERE '. $this->where;
+				$sql.= ' WHERE '. $where;
 			}
 			return $sql;
 		}
+	}
+
+	public function __destruct()
+	{
+		$this->joins = array();
+		$this->where = array();
 	}
 }

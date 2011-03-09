@@ -46,14 +46,14 @@ final class SqlBuilderUpdate extends SqlBuilderAbstract
 	protected $table = '';
 	protected $columns = array();
 	protected $values = array();
-	protected $where = '';
-	protected $quoteInto = array();
 
 
 
 	public function __construct($bootstrap = null)
 	{
 		parent::__construct($bootstrap);
+		//print $this->db;
+		//var_dump($this->$db);
 	}
 
 
@@ -76,10 +76,13 @@ final class SqlBuilderUpdate extends SqlBuilderAbstract
 	 */
 	public function update( $table=null, array $args=array(), $where=null )
 	{
-		if ( !is_string($table) ) {
+		if (is_null($table)) {
+			return $this;
+		}
+		if (!is_string($table)) {
 			throw new SqlBuilderUpdateException('Update expects string for table');
 		}
-		if ( !is_array($args) && $this->isAssoc($args)) {
+		if (!is_array($args) && $this->isAssoc($args)) {
 			throw new SqlBuilderUpdateException('Update requires fields to be an associative array');
 		}
 		$this->table = $table;
@@ -96,13 +99,15 @@ final class SqlBuilderUpdate extends SqlBuilderAbstract
 			if ( count($where)>2 ) {
 				throw new SqlBuilderUpdateException('Parameter count for where exceeds two parameters, where = array("where statement ?", "quoteInto parameter").  Quote into parameter can also be an array');
 			}
+			//list( $where, $this->quoteInto ) = $where;
+			$this->where($where);
 		}
-		list( $this->where, $this->quoteInto ) = $where;
+		elseif (is_string($where)) {
+			$this->where($where);
+		}
 
 		return $this;
 	}
-
-
 
 
 
@@ -116,31 +121,25 @@ final class SqlBuilderUpdate extends SqlBuilderAbstract
 			$update[] = $this->formatColumns($this->columns[$i]).' = '.$this->formatValues($this->values[$i]);
 		}
 		$str.= ' SET '.join(', ', $update);
-		$where = $this->where;
-		if (!empty($this->quoteInto)) {
-			if (is_array($this->quoteInto)) {
-				foreach ($this->quoteInto as $key => $value) {
-					//be careful, accent grave at the beginning will recognize a database column rather than value
-					if (strpos(trim($value), $field_type) || strpos(trim($value), '`')) {
-						//this is a database column
-						$value = $this->columnFormat($value);
-					}
-					else {
-						$value = $this->formatValues($value);
-					}
-					$where = preg_replace('/\?/',$value,$where,1);
-				}
-			}
-			else {
-				$where_clause = preg_replace("/\?/", $this->quoteInto, $where);
-				$where = $where_clause;
-			}
+		$join_string = $this->buildJoins();
+		if ($join_string != '') {
+			$str .= $join_string;
 		}
+		$where = $this->buildWhere();
 		if ($where != '') {
-			$str.=' WHERE '.$where;
+			$str.= ' WHERE '.$where;
 		}
 		return $str;
 	}
+
+
+
+	public function __destruct()
+	{
+		$this->joins = array();
+		$this->where = array();
+	}
+
 
 }
 

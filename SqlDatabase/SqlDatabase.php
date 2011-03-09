@@ -51,7 +51,7 @@ class SqlDatabase
 		}
 	}
 
-	public function getErrors()
+	public function getError()
 	{
 		$arr = new stdClass;
 		$arr->error_type = $this->getConnectionType();
@@ -73,6 +73,9 @@ class SqlDatabase
 	// a function that parses the dsn, allows either
 	private function parseHost( $dsn )
 	{
+		if ($dsn == '') {
+			return 'No Host Provided';
+		}
 		if ( is_string($dsn) ) {
 			$data = explode(' ', $dsn);
 			$dsn_args = array();
@@ -113,24 +116,34 @@ class SqlDatabase
 		}
 
 		if (is_array($type)) {
+			if (empty($type)) {
+				return false;
+			}
 			if ($type[0] == 'many') {
-				//we probably have just two for right now, do we need more?  probably not
+				// we probably have just two for right now, do we need more?  probably not
 				$c = $type[1];
 				foreach ( $c as $type => $dsn ) {
 					if (is_array($dsn)) {
 						for( $i=0; $i<count($dsn); $i++ ){
-							$this->setConnection($type, $dsn[$i]);
+							if( !$this->setConnection($type, $dsn[$i]) ){
+								throw new SqlDatabaseException('Unable to connect to database. For '.$type.' on dsn: '.$this->parseHost($dsn[$i]));
+							}
 						}
 					}
 					elseif (is_string($dsn)){
-						$this->setConnection($type, $dsn);
+						if( !$this->setConnection($type, $dsn) ){
+							throw new SqlDatabaseException('Unable to connect to database for '. $type.' on dsn: '.$this->parseHost($dsn[$i]));
+						}
 					}
 				}
+				return null;
 			}
 		}
 		else {
 			// call parseHost first, it ensures there is a host in the dsn
-			$this->setConnection($type, $dsn);
+			if (! $this->setConnection($type, $dsn) ) {
+				throw new SqlDatabaseException('Unable to connect to database for ' . $type . ' on dsn: '. $this->parseHost($dsn));
+			}
 			return null;
 		}
 	}
@@ -139,6 +152,9 @@ class SqlDatabase
 	protected function setConnection($type, $dsn)
 	{
 		$host = $this->parseHost($dsn);
+		if (!is_string($type)) {
+			return false;
+		}
 		$resource = $this->database_methods[$type]->connect($dsn);
 		if ( !is_resource($resource) ) {
 			throw new SqlDatabaseException('Resource not returned on setup.  Check that your database is running, or your dsn');
