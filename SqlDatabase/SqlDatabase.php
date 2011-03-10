@@ -163,6 +163,7 @@ class SqlDatabase
 		$this->database_connections[$type][$host]['dsn'] = $dsn;
 		$this->current_method =& $this->database_methods[$type];
 		$this->current_resource =& $this->database_connections[$type][$host]['resource'];
+		return true;
 	}
 
 

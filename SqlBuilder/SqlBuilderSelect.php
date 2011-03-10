@@ -63,8 +63,9 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	/**
 	 * constructor
 	 */
-	public function __construct( $bootstrap = null ) {
+	public function __construct( $syntax = 'mysql', $bootstrap = null ) {
 		parent::__construct($bootstrap);
+		$this->syntax = $syntax;
 	}
 
 
@@ -517,33 +518,23 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		//explode the sql;
 		//invoke __toString()
 		$sql_string = $this . '';
-		//now explode by SELECT;
-		$sql_ = explode('SELECT ',$sql_string);
-		$sql_string = array_pop($sql_); //join("\n", $sql_);
-
-		$sql_ = explode(' FROM ', $sql_string);
-		if ( strpos($sql_[0],',') !== false ) {
-			$selects = explode(', ', $sql_[0]);
-			$sql_[0] = "\t" . join(",\n\t",$selects);
+		//first check for from
+		$tmp = explode('FROM', $sql_string);
+		if (count($tmp)==1) {
+			print $sql_string;
+			return $this;
 		}
-		else {
-			$sql_[0] = "\t" . $sql_[0];
+		$str = array_shift($tmp);
+		$str.= "\nFROM ".join("\n\tFROM ",$tmp);
+		$str = preg_replace("/((natural|cross|inner|outer|left|right)\sjoin)/i","\n$1",$str);
+		$tmp = explode('WHERE', $str);
+		if (count($tmp)==1) {
+			print '<pre>';print_r($str);print'</pre>';
+			return $this;
 		}
-		$sql_string = 'SELECT ' . "\n" . $sql_[0] . "\n".'FROM ' . "\n";
-
-		$sql_ = explode(' WHERE ', $sql_[1]);
-		if ( strpos($sql_[0],',') !== false ) {
-			$froms = explode(',', $sql_[0]);
-			$sql_[0] = "\t" . join(",\n\t", $froms);
-		}
-		else {
-			$sql_[0] = "\t" . $sql_[0];
-		}
-		$sql_string .= $sql_[0] . "\n".'WHERE ' . "\n" . $sql_[1];
-
-		$sql_string = preg_replace("/(inner join|join|left join|right join)/i","\n$1",$sql_string);
-
-		print '<pre>' . $sql_string . '</pre>';
+		$str = array_shift($tmp);
+		$str.= "\nWHERE ".join("\nWHERE", $tmp);
+		print '<pre>'.$str.'</pre>';
 		return $this;
 	}
 

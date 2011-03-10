@@ -48,9 +48,10 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 	/**
 	 * Constructer
 	 */
-	public function __construct($bootstrap = null)
+	public function __construct($syntax='mysql', $bootstrap = null)
 	{
 		parent::__construct($bootstrap);
+		$this->syntax = $syntax;
 	}
 
 

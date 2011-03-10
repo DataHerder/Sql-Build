@@ -57,11 +57,9 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 
 	protected $database_type = 'mysql';
 	protected $syntax = 'mysql';
-
 	// DbApi reference for statements
-	//protected static $db;
-	public $db;
-
+	// protected static $db;
+	// public $db;
 	protected $func_format = null;
 
 
@@ -153,7 +151,7 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 
 
 	/**
-	 * formatTable shorthand and SqlBuilderExpression sniffer
+	 * formatTable shorthand
 	 * 
 	 * @access protected
 	 * @param string $table
@@ -251,7 +249,7 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 		}
 		elseif ( strpos($column, '.') !== false ) {
 			$column = preg_replace('/`|"/','',$column);
-			$column = $this->checkTableFormat($column);
+			$column = $this->db->formatColumn($column);
 		}
 		else {
 			$column = $this->db->formatColumn($column);

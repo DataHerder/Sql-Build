@@ -41,10 +41,10 @@ abstract class SqlConnectionAbstract
 			throw new SqlDatabaseException('Database name required in dsn');
 		}
 		elseif (!isSet($args['host']) && !isSet($args['server'])){
-			throw new SqlDatabaseException('Host/server required in dsn');
+			throw new SqlDatabaseException('Host/Server required in dsn');
 		}
 		elseif (!isSet($args['user']) && !isSet($args['username'])){
-			throw new SqlDatabaseException('user/username required in dsn');
+			throw new SqlDatabaseException('User/Username required in dsn');
 		}
 		elseif (!isSet($args['password'])){
 			throw new SqlDatabaseException('Password required in dsn');

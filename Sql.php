@@ -79,8 +79,11 @@ final class Sql //extends SqlBuilderAbstract
 
 	protected $SqlClass = null;
 	protected $bootstrap;
-	//protected $joins = array();
-	public $DbApi = null;
+	protected $log = false;
+	protected $logfile = 'logfile.sql';
+	protected $verbose = false;
+	protected static $syntax = 'mysql';
+	protected static $DbApi = null;
 
 
 
@@ -94,7 +97,7 @@ final class Sql //extends SqlBuilderAbstract
 	 * @param (string) $type
 	 * @return (object) $this
 	 */
-	function __construct( $type = null )
+	function __construct( $type = null, $db_ref = null )
 	{
 		// we are not constructing the Abstract
 		// we really only need to extend the abstract for the static Expression method
@@ -102,20 +105,32 @@ final class Sql //extends SqlBuilderAbstract
 		// the abstract __construct();  reason being is that for every new 
 		// sql object created a bootstrap will be created, we don't need that
 		// we only need an element FROM the bootstrap, so call it first
-		$this->bootstrap = new SqlBootstrap;
-		$this->DbApi = new SqlDatabase;
-		//$this->$db =& $this->DbApi;
-		$dsn = $this->bootstrap->load('dsn');
-		if ( is_array($dsn) || is_string($dsn) ) {
-			$this->DbApi->setup($dsn);
+		if ($type !== false ) { //self instantiated
+			$this->bootstrap = new SqlBootstrap;
+			self::$DbApi = new SqlDatabase;
+			$dsn = $this->bootstrap->load('dsn');
+			if ( is_array($dsn) || is_string($dsn) ) {
+				self::$DbApi->setup($dsn);
+				$syntax_type = self::$DbApi->getConnectionType();
+				self::$syntax = $syntax_type;
+			}
+			if ( $type == null ) {
+				return; //do nothing
+			}
+			else {
+				//this all
+				$this->loadSqlClass($type);
+				return $this;
+			}
 		}
-		if ( $type == null ) {
-			return; //do nothing
-		}
-		else {
-			//this all
-			$this->loadSqlClass($type);
-			return $this;
+		elseif ($type === false ) {  // self instantiated... DO NOT DUPLICATE DATABASE CONNECTION
+			// we want a reference, we do not want to instantiate anything new
+			// when we embed statements (primarily SELECT statements)
+			self::$DbApi = $db_ref;
+			if (is_object(self::$DbApi)) {
+				$syntax_type = self::$DbApi->getConnectionType();
+				self::$syntax = $syntax_type;
+			}
 		}
 	}
 
@@ -136,7 +151,8 @@ final class Sql //extends SqlBuilderAbstract
 		// if you want to use the __invoke on update or insert
 		// you must specify it like $Sql = new Sql('insert');
 		if ( $this->SqlClass == null ) {
-			$this->SqlClass = new SqlBuilderSelect($this->bootstrap);
+			$this->SqlClass = new SqlBuilderSelect($this->syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
 		}
 		return $this->SqlClass->__invoke($table, $fields, $where);
 	}
@@ -146,30 +162,31 @@ final class Sql //extends SqlBuilderAbstract
 	{
 		if ( $method == 'select' ) {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderSelect($this->bootstrap);
-			$this->SqlClass->db =& $this->DbApi;
+			$this->SqlClass = new SqlBuilderSelect(self::$syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
 		}
 		elseif ( $method == 'update' ) {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderUpdate($this->bootstrap);
-			$this->SqlClass->db =& $this->DbApi;
+			$this->SqlClass = new SqlBuilderUpdate(self::$syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
 		}
 		elseif ( $method == 'insert' ) {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderInsert($this->bootstrap);
-			$this->SqlClass->db =& $this->DbApi;
+			$this->SqlClass = new SqlBuilderInsert(self::$syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
 		}
 		elseif ( $method == 'delete' || $method == 'truncate' ) {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderDelete($this->bootstrap);
-			$this->SqlClass->db =& $this->DbApi;
+			$this->SqlClass = new SqlBuilderDelete(self::$syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
 		}
 	}
 
 
 
 	public static function gi() {
-		$B = new Sql;
+		$db_ref =& self::$DbApi;
+		$B = new Sql(false, $db_ref);
 		return $B;
 	}
 
@@ -183,7 +200,7 @@ final class Sql //extends SqlBuilderAbstract
 	 */
 	public function __call( $method, $params=array() )
 	{
-		$syntax_type = $this->DbApi->getConnectionType();
+		$syntax_type = self::$DbApi->getConnectionType();
 		if ( $method == 'gi') {
 			//get instance
 			$B = new Sql;
@@ -207,9 +224,6 @@ final class Sql //extends SqlBuilderAbstract
 		elseif ($method == 'setSyntax') {
 			throw new SqlException('Method setSyntax can only be called after statement object has been instantiated within Sql');
 		}
-		if (is_object($this->SqlClass)){
-			//$this->SqlClass->_setSyntax($syntax_type);
-		}
 		if ( $method == 'get' ) {
 			$this->__destroyObject();
 			$this->SqlClass = new SqlBuilderSelect($this->bootstrap);
@@ -220,11 +234,11 @@ final class Sql //extends SqlBuilderAbstract
 				}
 			}
 			$this->SqlClass->__invoke($params[0], $params[1], $params[2]);
-			if (! $this->DbApi->checkConnection() ){
+			if (! self::$DbApi->checkConnection() ){
 				throw new SqlException('No database set for get');
 			}
 			else {
-				$rows = $this->DbApi->query($this->SqlClass->__toString());
+				$rows = self::$DbApi->query($this->SqlClass->__toString());
 				return $rows;
 			}
 		}
@@ -240,14 +254,17 @@ final class Sql //extends SqlBuilderAbstract
 			return $this;
 		}
 		// this is an explicit database call so route it to the database wrapper
-		elseif ( method_exists($this->DbApi, $method) || method_exists($this->DbApi->current_method, $method)) {
+		elseif ( method_exists(self::$DbApi, $method) || method_exists(self::$DbApi->current_method, $method)) {
 			if ($method == 'execute' || $method == 'query') {
 				array_push($params,$this->SqlClass->__toString());
 			}
-			$returned_data = call_user_func_array(array($this->DbApi, $method), $params);
-			if ($method == 'switchServer' && is_object($this->SqlClass)) {
-				$syntax_type = $this->DbApi->getConnectionType();
-				$this->SqlClass->_setSyntax($syntax_type);
+			$returned_data = call_user_func_array(array(self::$DbApi, $method), $params);
+			if ($method == 'switchServer') {
+				$syntax_type = self::$DbApi->getConnectionType();
+				self::$syntax = $syntax_type;
+				if (is_object($this->SqlClass)) {
+					$this->SqlClass->_setSyntax($syntax_type);
+				}
 			}
 			//important strong match, api returns null if not a value or response from database server
 			if ( $returned_data !== null ) {
@@ -293,24 +310,35 @@ final class Sql //extends SqlBuilderAbstract
 	}
 
 
-	/**
-	 * when the object is destoyed, the SqlClass
-	 * is also destroyed
-	 * 
-	 * @access public
-	 * @param null
-	 * @return null
-	 */
-	public function __destruct()
+
+	public function log( $verbos = false )
 	{
-		// after script execution.
-		if ( is_object($this->SqlClass) ) {
-			// it is true, unset calls the destruct method
-			// and in fact destroys the object
-			unset($this->SqlClass);
-		}
+		$this->log = true;
+		$this->verbose = $verbos;
+		return $this;
 	}
 
+	public function unlog()
+	{
+		$this->log = false;
+		$this->verbose = false;
+		return $this;
+	}
+
+
+
+	private function logSql( $sql )
+	{
+		//this will log an sql file
+		$fh = fopen($this->logfile, 'a'); // or die("Can't open file");
+		#print 'h';
+		if (!$fh) {
+		#	//throw new SqlException('Unable to load log file!  Check your permissions or the directory you want to store your sqls in.');
+			die('Unable to load log file!  Check your permissions or the directory you want to store your data.');
+		}
+		fwrite($fh, $sql."\n");
+		fclose($fh);
+	}
 
 
 	/**
@@ -324,8 +352,7 @@ final class Sql //extends SqlBuilderAbstract
 	 */
 	protected function sniffMyself()
 	{
-		// sniff myself you know where
-		// mmmm... smells good
+		// sniff myself
 		if ( $this->SqlClass instanceof SqlBuilderSelect ) {
 			// this is a select object
 			return "select";
@@ -347,9 +374,34 @@ final class Sql //extends SqlBuilderAbstract
 	}
 
 
+	/**
+	 * when the object is destoyed, the SqlClass
+	 * is also destroyed
+	 * 
+	 * @access public
+	 * @param null
+	 * @return null
+	 */
+	public function __destruct()
+	{
+		// after script execution.
+		if ( is_object($this->SqlClass) ) {
+			// it is true, unset calls the destruct method
+			// and in fact destroys the object
+			unset($this->SqlClass);
+		}
+	}
+
+
+
 	public function __toString()
 	{
-		return $this->SqlClass."";
+		$sql = $this->SqlClass."";
+
+		if ($this->log) {
+			$this->logSql($sql);
+		}
+		return $sql;
 	}
 }
 

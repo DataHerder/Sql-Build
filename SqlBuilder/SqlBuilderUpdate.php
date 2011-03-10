@@ -49,9 +49,10 @@ final class SqlBuilderUpdate extends SqlBuilderAbstract
 
 
 
-	public function __construct($bootstrap = null)
+	public function __construct($syntax = 'mysql', $bootstrap = null)
 	{
 		parent::__construct($bootstrap);
+		$this->syntax = $syntax;
 		//print $this->db;
 		//var_dump($this->$db);
 	}

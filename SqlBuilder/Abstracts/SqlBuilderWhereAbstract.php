@@ -17,21 +17,25 @@ class SqlBuilderWhereAbstract {
 	 * @param mixed $q string array
 	 * @return object $this
 	 */
-	public function where( $str=null, $q=null )
+	public function where( $str=null, $q='-%skip%-' )
 	{
 		//print $str;
 		$type = self::_sniffMyself();
 		if (($type != 'select' && $type != 'delete' && $type != 'update') || (isSet($this->type) && $this->type == 'TRUNCATE')) {
-			throw new SqlAbstractException('Where statements are only for SELECT, UPDATE, and DELETE statements');
+			throw new SqlAbstractException('The WHERE clause is reserved only for SELECT, UPDATE, and DELETE statements');
 		}
 		if ( is_null($str) ) {
 			$str = '1 = 1';
 		}
-		if ( is_null($q) ) {
+		if ($q == '-%skip%-') {
 			//do nothing
 		}
 		elseif ( !is_array($q) ) {
-			if ( is_string($q)){
+			if ( is_null($q) ) {
+				//do nothing
+				$q = 'NULL';
+			}
+			elseif ( is_string($q)){
 				//xss eventually goes here
 				//$q = "'" . $this->db->escape($q) . "'";
 				$q = "'" . $q . "'";
@@ -72,7 +76,7 @@ class SqlBuilderWhereAbstract {
 	 * @param mixed $q string array
 	 * @return object $this
 	 */
-	public function orWhere( $str=null, $q=null ) {
+	public function orWhere( $str=null, $q='-%skip%-' ) {
 		$this->where($str,$q);
 		if ( $this->joinThese ) {
 			$current_where = array_pop($this->joinWhere);
