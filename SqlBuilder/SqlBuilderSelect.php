@@ -193,7 +193,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 				}
 
 
-				if ( is_null($fields) ) {
+				if (is_null($fields)) {
 					//dbg_array($this->tables);
 					return $this;
 				}
@@ -216,14 +216,22 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 									$this->fields[$alias][] = $field[$i];
 								}
 							}
-							elseif ( is_string($field) ) {
+							elseif (is_string($field) || is_object($field)) {
 								$this->fields[$alias][] = $field;
 							}
 						}
 					}
 					elseif ( is_array($fields) ) {
 						for( $i=0; $i < count($fields); $i++ ) {
-							$this->fields[$this->aliases[0]][] = $fields[$i];
+							if (is_array($fields[$i])) { // && !$this->isAssoc($fields[$i]))) {
+								for ($j=0; $j<count($fields[$i]);$j++) {
+									$this->fields[$this->aliases[$i]][] = $fields[$i][$j];
+								}
+							}
+							else {
+								//dbg_array($fields[$i]);
+								$this->fields[$this->aliases[0]][] = $fields[$i];
+							}
 						}
 					}
 				}
@@ -410,7 +418,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	{
 		$sql = 'SELECT ';
 		$aliases = false;
-		if ( is_assoc($this->tables) ) {
+		if ( $this->isAssoc($this->tables) ) {
 			$aliases = true;
 		}
 

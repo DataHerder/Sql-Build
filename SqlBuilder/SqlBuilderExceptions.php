@@ -14,6 +14,12 @@ class SqlSelectException extends Exception
 		parent::__construct($message, $code, $previous);
 	}
 }
+class SqlBuilderSelectException extends Exception
+{
+	public function __construct($message, $code = 0, Exception $previous = null) {
+		parent::__construct($message, $code, $previous);
+	}
+}
 
 
 class SqlExpressionException extends Exception
@@ -48,7 +54,7 @@ class SqlBootstrapException extends Exception
 }
 
 
-class SqlInsertException extends Exception
+class SqlBuilderInsertException extends Exception
 {
 	public function __construct($message, $code = 0, Exception $previous = null) {
 		parent::__construct($message, $code, $previous);

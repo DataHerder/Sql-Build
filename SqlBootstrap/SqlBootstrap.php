@@ -8,17 +8,17 @@ class SqlBootstrap extends SqlBuilderBootstrapAbstract {
 		// setup with your database, you won't need to call
 		// $sql->setup($dsn);
 		//$pg_dsn = 'host=localhost port=5433 dbname=template1 user=postgres password=[PASSWORD] options=\'--client_encoding=UTF8\'';
-		$my_dsn = 'host=localhost dbname=DBNAME user=root password=';
-		$pg_dsn = array(
+		$my_dsn = 'host=localhost dbname=dealer user=root password=';
+		/*$pg_dsn1 = array(
 			'host'=>'localhost',
 			'port'=>'5433',
-			'dbname'=>'template1',
+			'dbname'=>'infrastructure',
 			'user'=>'postgres',
-			'password'=>'[PASSWORD]',
+			'password'=>'',
 			'options'=>"'--client_encoding=UTF8'"
-		);
+		);*/
 		// either one or array of connections
-		$dsn = array('postgres'=>array($pg_dsn)); //, 'mysql'=>array($my_dsn));
+		$dsn = array('mysql'=>array($my_dsn)); //, 'mysql'=>array($my_dsn));
 		$this->databaseSetup($dsn);
 		//this preformats tables
 		$this->preformatTable(function( $table ) {

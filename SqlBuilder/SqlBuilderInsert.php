@@ -69,8 +69,11 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 	 * @param array $values
 	 * @return object $this
 	 */
-	public function insert( $table, $values )
+	public function insert( $table = null, $values = null )
 	{
+		if (is_null($table)) {
+			return $this;
+		}
 		//table MUST BE strings
 		if ( ! is_string($table) ) {
 			throw new SqlBuilderInsertException('Table needs to be a string');
@@ -105,6 +108,50 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 		//$this->sql = $sql;
 		return $this;
 	}
+
+
+	/**
+	 * insertData requires an array
+	 * 
+	 * @param string $string
+	 * @return boolean
+	 */
+	public function insertData( $args = null )
+	{
+		
+	}
+
+	public function getCsv( $file )
+	{
+		$handle = fopen($file,'r');
+		if (!$handle) {
+			throw new SqlBuilderInsertException('CSV file unreadable');
+		}
+		$row = 1;
+		$cols = array();
+		$vals = array();
+		while (($data = fgetcsv($handle)) !== false) {
+			if ($row == 1) {
+				$cols = $data;
+			}
+			else {
+				if (!isSet($i)) {
+					$i=0;
+				}
+				for ($j=0;$j<count($data);$j++) {
+					$vals[$i][$cols[$j]] = $data[$j];
+				}
+				$i++;
+			}
+			$row++;
+		}
+		fclose($handle);
+		return array('columns'=>$cols,'values'=>$vals);
+	}
+
+
+
+
 
 
 

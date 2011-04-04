@@ -74,8 +74,15 @@ class SqlPostgresql extends SqlConnectionAbstract
 	public function serverStatus($resource) {}
 
 
-	public function showTables( $resource ) {}
-	public function showColumns( $table, $resource ) {}
+	public function showTables($resource)
+	{
+		return false;
+	}
+	public function showColumns( $table, $resource )
+	{
+		$set = pg_query('SELECT * FROM "'.$table.'" LIMIT 1');
+		return array_keys(pg_fetch_assoc($set));
+	}
 	public function database( $db, $resource ) {}
 
 	protected function errorOut()
@@ -97,6 +104,16 @@ class SqlPostgresql extends SqlConnectionAbstract
 		$column = $this->stripColumns($column);
 		$column = preg_replace('/"/', '', $column);
 		return '"' . $column . '"';
+	}
+	public function formatTable( $table ){
+		$table = $this->stripColumns($table);
+		if (strpos($table,'.')!==false) {
+			$tmp = explode('.', $table);
+			return '"'.$tmp[0].'"."'.$tmp[1].'"';
+		}
+		else {
+			return '"'.$table.'"';
+		}
 	}
 
 }

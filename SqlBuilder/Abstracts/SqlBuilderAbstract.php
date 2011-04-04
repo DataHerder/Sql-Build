@@ -158,12 +158,8 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	 * @return string
 	 */
 	protected function _tableFormatHelper($table) {
-		if ($this->syntax == 'mysql'){
-			return '`' . trim($this->_bootstrapTableFormat($table)) . '`';
-		}
-		elseif ($this->syntax == 'postgres') {
-			return '"' . trim($this->_bootstrapTableFormat($table)) . '"';
-		}
+		$table = trim($this->_bootstrapTableFormat($table));
+		return $this->db->formatTable($table);
 	}
 
 

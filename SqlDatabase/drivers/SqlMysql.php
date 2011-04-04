@@ -54,6 +54,11 @@ class SqlMysql extends SqlConnectionAbstract
 		$column = $this->stripColumns($column);
 		return '`'.$column.'`';
 	}
+	public function formatTable($table)
+	{
+		$table = $this->stripColumns($table);
+		return '`'.$table.'`';
+	}
 
 	public function serverStatus($resource) {}
 

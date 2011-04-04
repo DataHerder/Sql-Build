@@ -34,6 +34,7 @@ require_once('SqlBuilder/SqlBuilderSelect.php');
 require_once('SqlBuilder/SqlBuilderUpdate.php');
 require_once('SqlBuilder/SqlBuilderInsert.php');
 require_once('SqlBuilder/SqlBuilderDelete.php');
+require_once('SqlBuilder/SqlBuilderAlter.php');
 require_once('SqlBuilder/SqlBuilderExpression.php');
 //builder exceptions
 require_once('SqlBuilder/SqlBuilderExceptions.php');
@@ -135,6 +136,12 @@ final class Sql //extends SqlBuilderAbstract
 	}
 
 
+	public static function expr($type, $data, $alias = null)
+	{
+		$Expr = new SqlBuilderExpression($type, $data, $alias);
+		return $Expr;
+	}
+
 
 
 	/**
@@ -151,7 +158,7 @@ final class Sql //extends SqlBuilderAbstract
 		// if you want to use the __invoke on update or insert
 		// you must specify it like $Sql = new Sql('insert');
 		if ( $this->SqlClass == null ) {
-			$this->SqlClass = new SqlBuilderSelect($this->syntax, $this->bootstrap);
+			$this->SqlClass = new SqlBuilderSelect(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
 		return $this->SqlClass->__invoke($table, $fields, $where);
@@ -178,6 +185,11 @@ final class Sql //extends SqlBuilderAbstract
 		elseif ( $method == 'delete' || $method == 'truncate' ) {
 			$this->__destroyObject();
 			$this->SqlClass = new SqlBuilderDelete(self::$syntax, $this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
+		}
+		elseif ($method == 'alter' || $method == 'build') {
+			$this->__destroyObject();
+			$this->SqlClass = new SqlBuilderBuildAlter(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
 	}
@@ -250,8 +262,11 @@ final class Sql //extends SqlBuilderAbstract
 			}
 		}
 		if ( method_exists($this->SqlClass, $method) ) {
-			call_user_func_array(array($this->SqlClass, $method), $params);
-			return $this;
+			$data = call_user_func_array(array($this->SqlClass, $method), $params);
+			if (is_object($data)) {
+				return $this;
+			}
+			else return $data;
 		}
 		// this is an explicit database call so route it to the database wrapper
 		elseif ( method_exists(self::$DbApi, $method) || method_exists(self::$DbApi->current_method, $method)) {
@@ -370,6 +385,9 @@ final class Sql //extends SqlBuilderAbstract
 		}
 		elseif ( $this->SqlClass instanceof SqlBuilderDelete ) {
 			return 'delete';
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderBuildAlter ) {
+			return 'alter';
 		}
 	}
 

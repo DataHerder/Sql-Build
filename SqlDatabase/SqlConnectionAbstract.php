@@ -10,6 +10,7 @@ abstract class SqlConnectionAbstract
 	abstract public function showColumns( $table, $resource );
 	//this is important for dynamic escaping and column formatting
 	abstract public function escape($string);
+	abstract public function formatTable($string);
 	abstract public function formatColumn($string);
 	abstract protected function errorOut();
 	abstract public function serverStatus($resource); // returns information about the database

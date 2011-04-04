@@ -53,7 +53,11 @@ class SqlDatabase
 
 	public function getError()
 	{
-		$arr = new stdClass;
+		#$arr = new stdClass;
+		#$arr->error_type = $this->getConnectionType();
+		#$arr->last_error = $this->last_error;
+		#$arr->error_message = $this->error_message;
+		$arr = new DatabaseError;
 		$arr->error_type = $this->getConnectionType();
 		$arr->last_error = $this->last_error;
 		$arr->error_message = $this->error_message;
@@ -230,5 +234,27 @@ class SqlDatabase
 				}
 			}
 		}
+	}
+}
+
+
+
+class DatabaseError {
+	protected $errors = array();
+	protected $error_type = '';
+	protected $last_error = '';
+	protected $error_message = '';
+	public function __construct() { }
+	public function __set($key, $value) {
+		eval('$this->'.$key.' = "'.preg_replace("/\"/",'\\"',$value).'";');
+	}
+	public function __get($key) {
+		$var = '';
+		eval('$var = $this->'.$key.';');
+		return $var;
+	}
+	public function __toString()
+	{
+		return $this->error_message.': '.$this->last_error;
 	}
 }
