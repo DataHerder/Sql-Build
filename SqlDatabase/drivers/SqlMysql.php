@@ -36,7 +36,11 @@ class SqlMysql extends SqlConnectionAbstract
 		
 	}
 	public function database($db, $resource) {
-		
+		$resource = mysql_select_db($db, $resource);
+		if (!$resource) {
+			throw new SqlDatabaseMysqlDriver('There was a problem switching the database '. mysql_error());
+		}
+		return $resource;
 	}
 	public function showColumns($table, $resource) {
 		
@@ -46,7 +50,7 @@ class SqlMysql extends SqlConnectionAbstract
 		if (is_callable($this->die_func)) {
 			$this->die_func(mysql_error());
 		}
-		throw new SqlDatabaseError('There was a problem with the request;' . mysql_error());
+		throw new SqlDatabaseMysqlDriver('There was a problem with the request;' . mysql_error());
 	}
 
 	public function formatColumn( $column )
@@ -70,3 +74,4 @@ class SqlMysql extends SqlConnectionAbstract
 }
 
 
+class SqlDatabaseMysqlDriver extends Exception {}
