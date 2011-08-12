@@ -45,13 +45,27 @@ require_once('SqlDatabase/SqlDatabase.php');
 
 //bootstrap
 require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
-require_once('SqlBootstrap/SqlBootstrap.php');
+/**
+ *  bootstrap is uniquely created by you, below is where the
+ * example bootstrap is located.. A bootstrap should created
+ * BEFORE instantiating Sql ex:
+ * 
+ * 	class SqlBootstrap extends SqlBootstrapAbstract {
+ * 		protected function _init() {...}
+ * 	}
+ * 	$sql = new Sql;
+ * 
+ * You can either change the below file to spec and uncomment
+ * this line or you can create your own bootstrap somewhere else
+ * and include it in your file after including this file (Sql.php).
+ */
+// require_once('SqlBootstrap/SqlBootstrap.php');
 
 
 /**
  * Class Sql
  * 
- * This class wraps the the separate classes together
+ * This class wraps the separate classes together
  * for quick instantiation and ease of use rather than
  * having to create different instants
  * 

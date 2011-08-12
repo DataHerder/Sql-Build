@@ -1,7 +1,7 @@
 <?php
 
 
-class SqlBuilderWhereAbstract {
+abstract class SqlBuilderWhereAbstract {
 	
 	protected $where = array();
 	protected $joinThese = false;
@@ -173,8 +173,6 @@ class SqlBuilderWhereAbstract {
 	 */
 	protected function _sniffMyself()
 	{
-		// sniff myself you know where
-		// mmmm... smells good
 		if ( $this instanceof SqlBuilderSelect ) {
 			// this is a select object
 			return "select";
