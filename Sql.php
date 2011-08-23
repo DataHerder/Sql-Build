@@ -46,7 +46,7 @@ require_once('SqlDatabase/SqlDatabase.php');
 //bootstrap
 require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
 /**
- *  bootstrap is uniquely created by you, below is where the
+ * A bootstrap is uniquely created by you, below is where the
  * example bootstrap is located.. A bootstrap should created
  * BEFORE instantiating Sql ex:
  * 
