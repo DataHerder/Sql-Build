@@ -23,7 +23,7 @@ class SqlPostgresql extends SqlConnectionAbstract
 		if (!is_string($dsn)) {
 			$dsn = $this->pg_dsn($args);
 		}
-		$plink = @pg_connect($dsn);
+		$plink = pg_connect($dsn);
 		return $plink; // return the resource to be allocated to the Database wrapper
 	}
 

@@ -60,6 +60,7 @@ require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
  * and include it in your file after including this file (Sql.php).
  */
 // require_once('SqlBootstrap/SqlBootstrap.php');
+require_once('SqlBootstrap/MyBootstrap/MyBootstrap.php');
 
 
 /**
@@ -125,9 +126,15 @@ final class Sql //extends SqlBuilderAbstract
 			self::$DbApi = new SqlDatabase;
 			$dsn = $this->bootstrap->load('dsn');
 			if ( is_array($dsn) || is_string($dsn) ) {
-				self::$DbApi->setup($dsn);
-				$syntax_type = self::$DbApi->getConnectionType();
-				self::$syntax = $syntax_type;
+				try {
+					self::$DbApi->setup($dsn);
+					$syntax_type = self::$DbApi->getConnectionType();
+					self::$syntax = $syntax_type;
+				} catch (Exception $e) {
+					print $e->getMessage();
+					print pg_last_error();
+					die;
+				}
 			}
 			if ( $type == null ) {
 				return; //do nothing
