@@ -124,7 +124,7 @@ final class SqlBuilderExpression
 		else { $as_alias = ''; }
 		if ( is_string($this->val) ) {
 			$val = $this->formatVal($this->val);
-			return $this->type . "($this->val)" . $as_alias;
+			return $this->type . "(".$this->val.")" . $as_alias;
 		}
 		elseif ( is_array($this->val) ) {
 			$val = array();

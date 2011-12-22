@@ -158,8 +158,9 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	 * @return string
 	 */
 	protected function _tableFormatHelper($table) {
-		$table = trim($this->_bootstrapTableFormat($table));
-		return $this->db->formatTable($table);
+		//$table = trim($this->_bootstrapTableFormat($table));
+		//return $this->db->formatTable($table);
+		return $table;
 	}
 
 

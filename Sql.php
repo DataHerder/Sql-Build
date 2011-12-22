@@ -60,7 +60,7 @@ require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
  * and include it in your file after including this file (Sql.php).
  */
 // require_once('SqlBootstrap/SqlBootstrap.php');
-require_once('SqlBootstrap/MyBootstrap/MyBootstrap.php');
+// require_once('SqlBootstrap/MyBootstrap/MyBootstrap.php');
 
 
 /**
@@ -182,7 +182,8 @@ final class Sql //extends SqlBuilderAbstract
 			$this->SqlClass = new SqlBuilderSelect(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
-		return $this->SqlClass->__invoke($table, $fields, $where);
+		$this->SqlClass->__invoke($table, $fields, $where);
+		return $this;
 	}
 
 
@@ -259,8 +260,8 @@ final class Sql //extends SqlBuilderAbstract
 		}
 		if ( $method == 'get' ) {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderSelect($this->bootstrap);
-			$this->SqlClass->_setSyntax($syntax_type);
+			$this->SqlClass = new SqlBuilderSelect($syntax_type, $this->bootstrap);
+			//$this->_setSyntax($syntax_type);
 			for ( $i=0; $i<3; $i++ ) {
 				if (!isSet($params[$i])) {
 					$params[$i] = null;
