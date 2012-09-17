@@ -1,4 +1,5 @@
 <?php 
+namespace SqlBuilder\SqlClasses\Abstracts;
 
 
 abstract class SqlBuilderJoinsAbstract extends SqlBuilderWhereAbstract {

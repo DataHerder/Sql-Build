@@ -1,5 +1,5 @@
 <?php
-
+namespace SqlBuilder\SqlBootstrap;
 
 class SqlBootstrap extends SqlBuilderBootstrapAbstract {
 	protected function _init()
@@ -8,7 +8,7 @@ class SqlBootstrap extends SqlBuilderBootstrapAbstract {
 		// setup with your database, you won't need to call
 		// $sql->setup($dsn);
 		//$pg_dsn = 'host=localhost port=5433 dbname=template1 user=postgres password=[PASSWORD] options=\'--client_encoding=UTF8\'';
-		$my_dsn = 'host=localhost dbname=dealer user=root password=';
+		$my_dsn = 'host=localhost dbname=dealer user=root password=B>)7|}QdJUA1@X;';
 		/*$pg_dsn1 = array(
 			'host'=>'localhost',
 			'port'=>'5433',

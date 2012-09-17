@@ -26,8 +26,8 @@
  * @since       File available since
  */
 
-
-
+namespace SqlBuilder\SqlClasses;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 /**
  * SqlBuilderSelect, constructs builder class
@@ -111,8 +111,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 			$this->fields[] = '*';
 		}
 		if ( !is_null($where) ) {
-			//$this->where[] = $where;
-			$this->where($where);
+			$this->where[] = $where;
 		}
 		return $this;
 	}

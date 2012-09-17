@@ -1,6 +1,5 @@
 <?php
-
-
+namespace SqlBuilder\SqlBootstrap;
 
 abstract class SqlBuilderBootstrapAbstract {
 

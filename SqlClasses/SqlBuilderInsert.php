@@ -25,6 +25,8 @@
  * @since       File available since 0.1
  */
 
+namespace SqlBuilder\SqlClasses;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 
 /**

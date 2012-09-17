@@ -1,4 +1,5 @@
 <?php
+namespace SqlBuilder\SqlDatabase\Drivers;
 
 class SqlMysql extends SqlConnectionAbstract
 {
@@ -74,4 +75,4 @@ class SqlMysql extends SqlConnectionAbstract
 }
 
 
-class SqlDatabaseMysqlDriver extends Exception {}
+class SqlDatabaseMysqlDriver extends \Exception {}

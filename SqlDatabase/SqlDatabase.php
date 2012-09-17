@@ -1,8 +1,10 @@
 <?php
-require_once('SqlDatabaseException.php');
-require_once('SqlConnectionAbstract.php');
-require_once('drivers/SqlMysql.php');
-require_once('drivers/SqlPostgresql.php');
+
+namespace SqlBuilder\SqlDatabase;
+
+use \SqlBuilder\SqlDatabase\Drivers\SqlMysql as SqlMysql;
+use \SqlBuilder\SqlDatabase\Drivers\SqlPostgresql as SqlPostgresql;
+
 
 class SqlDatabase
 {

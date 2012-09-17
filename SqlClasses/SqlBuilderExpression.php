@@ -25,6 +25,7 @@
  * @link        my.public.repo
  * @since       File available since
  */
+namespace SqlBuiler\SqlClasses;
 
 
 /**

@@ -25,22 +25,10 @@
  * @link        my.public.repo
  * @since       File available since
  */
+namespace SqlBuilder\SqlClasses\Abstracts;
 
-require_once('SqlBuilderWhereAbstract.php');
-require_once('SqlBuilderJoinsAbstract.php');
-
-
-interface SqlBuilderInterface
-{
-	public function tableFormat($table);
-	public function formatColumns( $column );
-	public function formatValues( $value );
-	public function isAssoc(array $array);
-	public static function expr( $type, $val = null);
-}
-
-
-
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderWhereAbstract as SqlBuilderWhereAbstract;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderJoinsAbstract as SqlBuilderJoinsAbstract;
 
 /**
  * SqlBuilderAbstract has the core functions that the 

@@ -1,4 +1,6 @@
 <?php
+namespace SqlBuilder\SqlClasses;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 
 final class SqlBuilderBuildAlter extends SqlBuilderAbstract
@@ -257,4 +259,4 @@ final class SqlBuilderBuildAlter extends SqlBuilderAbstract
 }
 
 
-class SqlBuilderBuildAlterException extends Exception{}
+class SqlBuilderBuildAlterException extends \Exception{}

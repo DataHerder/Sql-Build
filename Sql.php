@@ -28,23 +28,19 @@
  */
 
 
-//sql builder requires
-require_once('SqlBuilder/Abstracts/SqlBuilderAbstract.php');
-require_once('SqlBuilder/SqlBuilderSelect.php');
-require_once('SqlBuilder/SqlBuilderUpdate.php');
-require_once('SqlBuilder/SqlBuilderInsert.php');
-require_once('SqlBuilder/SqlBuilderDelete.php');
-require_once('SqlBuilder/SqlBuilderAlter.php');
-require_once('SqlBuilder/SqlBuilderExpression.php');
-//builder exceptions
-require_once('SqlBuilder/SqlBuilderExceptions.php');
+namespace SqlBuilder;
 
+use SqlBuilder\SqlBootstrap\SqlBootstrap as SqlBootstrap;
+use SqlBuilder\SqlBootstrap\SqlBuilderBootstrapAbstract as SqlBuilderBootstrapAbstract;
+use SqlBuilder\SqlDatabase\SqlDatabase as SqlDatabase;
+use SqlBuilder\SqlClasses\SqlBuilderSelect as SqlBuilderSelect;
+use SqlBuilder\SqlClasses\SqlBuilderUpdate as SqlBuilderUpdate;
+use SqlBuilder\SqlClasses\SqlBuilderInsert as SqlBuilderInsert;
+use SqlBuilder\SqlClasses\SqlBuilderDelete as SqlBuilderDelete;
+use SqlBuilder\SqlClasses\SqlBuilderAlter as SqlBuilderAlter;
+use SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
+use SqlBuilder\SqlClasses\SqlExceptions\SqlException as SqlException;
 
-//api
-require_once('SqlDatabase/SqlDatabase.php');
-
-//bootstrap
-require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
 /**
  * A bootstrap is uniquely created by you, below is where the
  * example bootstrap is located.. A bootstrap should created
@@ -59,8 +55,6 @@ require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
  * this line or you can create your own bootstrap somewhere else
  * and include it in your file after including this file (Sql.php).
  */
-// require_once('SqlBootstrap/SqlBootstrap.php');
-// require_once('SqlBootstrap/MyBootstrap/MyBootstrap.php');
 
 
 /**
@@ -90,7 +84,7 @@ require_once('SqlBootstrap/SqlBuilderBootstrapAbstract.php');
  * @link        my.public.repo
  * @since       File available since
  */
-final class Sql //extends SqlBuilderAbstract
+final class Sql
 {
 
 	protected $SqlClass = null;
@@ -214,6 +208,12 @@ final class Sql //extends SqlBuilderAbstract
 			$this->SqlClass = new SqlBuilderBuildAlter(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
+		elseif ($method == 'raw') {
+			throw new SqlException('Raw query not supported yet');
+			$this->__destroyObject();
+			$this->SqlClass = new SqlBuilderRawQuery($this->bootstrap);
+			$this->SqlClass->db =& self::$DbApi;
+		}
 	}
 
 
@@ -248,7 +248,6 @@ final class Sql //extends SqlBuilderAbstract
 		}
 
 		$this->loadSqlClass($method);
-
 
 		//special get method whereby
 		if ($method == 'setSyntax' && is_object($this->SqlClass)) {

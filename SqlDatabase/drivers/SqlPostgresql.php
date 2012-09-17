@@ -1,4 +1,5 @@
 <?php
+namespace SqlBuilder\SqlDatabase\Drivers;
 
 class SqlPostgresql extends SqlConnectionAbstract
 {

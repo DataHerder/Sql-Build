@@ -26,6 +26,8 @@
  * @since       File available since
  */
 
+namespace SqlBuilder\SqlClasses;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 /**
  * SqlBuilderDelete, constructs builder class

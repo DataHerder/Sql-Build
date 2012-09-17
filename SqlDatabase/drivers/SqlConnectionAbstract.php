@@ -1,4 +1,5 @@
-<?php
+<?php 
+namespace SqlBuilder\SqlDatabase\Drivers;
 
 abstract class SqlConnectionAbstract
 {

@@ -27,6 +27,8 @@
  */
 
 
+namespace SqlBuilder\SqlClasses;
+use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 
 /**

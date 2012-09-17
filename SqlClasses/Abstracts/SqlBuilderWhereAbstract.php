@@ -1,4 +1,7 @@
 <?php
+namespace SqlBuilder\SqlClasses\Abstracts;
+
+use \SqlBuilder\SqlClasses\Exceptions\SqlAbstractException as SqlAbstractException;
 
 
 abstract class SqlBuilderWhereAbstract {
