@@ -29,16 +29,13 @@ namespace SqlBuilder\SqlClasses\Abstracts;
 
 use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderWhereAbstract as SqlBuilderWhereAbstract;
 use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderJoinsAbstract as SqlBuilderJoinsAbstract;
+use \SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
 
 /**
- * SqlBuilderAbstract has the core functions that the 
+ * SqlBuilderAbstract has the core functions that the
  * sql update, insert, and select work from
- * 
- * @category Structured Query Language
- * @package Sql
- * @subpackage SqlBuilder
- * @author Paul Carlton
- * @link my.public.repo
+ *
+ * @package SqlBuilderAbstract
  */
 abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements SqlBuilderInterface
 {
@@ -55,10 +52,10 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	 * Constructer class, determines if we need to create a mysql connection
 	 * This does not create a mysql connection on default, parameters need to be
 	 * passed
-	 * 
+	 *
 	 * @access public
-	 * @param mixed $dsn
-	 * @return object $this
+	 * @param null $bootstrap
+	 * @return \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract $this
 	 */
 	public function __construct( $bootstrap = null )
 	{
@@ -70,22 +67,20 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	}
 
 
-
-
-
 	/**
 	 * An important element here where this static function
 	 * allows expressions and the clause DISTINCT.
 	 * This returns an object SqlExp that can be evaluated.
-	 * All one needs to do is pass: 
-	 * 
+	 * All one needs to do is pass:
+	 *
 	 * Sql::expr('distinct','a.data');
-	 * 
+	 *
 	 * Or use the variable you created: $Sql::expr() for shorter typing
-	 * 
+	 *
 	 * @access public
 	 * @param string $type
 	 * @param mixed $val
+	 * @param null $as_alias
 	 * @return SqlBuilderExpression $Expression
 	 */
 	public static function expr($type, $val = null, $as_alias = null)
@@ -193,7 +188,7 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	 * @param string $value
 	 * @return string $value
 	 */
-	public function formatValues( $value = null )
+	public function formatValues($value = null)
 	{
 		if ($value == null) {
 			return 'NULL';
@@ -202,7 +197,12 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 			return $value;
 		}
 		elseif ( is_string($value) ){
-			$value = "'" . $this->db->escape($value) . "'";
+			if (is_object($this->db)) {
+				$value = "'" . $this->db->escape($value) . "'";
+			} else {
+				// dangerous! when connected to a db the values are escaped
+				$value = "'" . $value . "'";
+			}
 		}
 		elseif ( $value instanceof SqlBuilderExpression ) {
 			$value = $value.'';
@@ -234,10 +234,14 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 		}
 		elseif ( strpos($column, '.') !== false ) {
 			$column = preg_replace('/`|"/','',$column);
-			$column = $this->db->formatColumn($column);
+			if (is_object($this->db)) {
+				$column = $this->db->formatColumn($column);
+			}
 		}
 		else {
-			$column = $this->db->formatColumn($column);
+			if (is_object($this->db)) {
+				$column = $this->db->formatColumn($column);
+			}
 		}
 		return $column;
 	}
@@ -250,8 +254,11 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 
 	protected function getFieldType()
 	{
-		$type = $this->db->getConnectionType();
-		$type = 'mysql';
+		if (is_object($this->db)) {
+			$type = $this->db->getConnectionType();
+		} else {
+			$type = 'mysql';
+		}
 		$field_type = '`';
 		if ($type == 'mysql') {
 			$field_type = '`';

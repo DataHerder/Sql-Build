@@ -1,9 +1,10 @@
 <?php
 namespace SqlBuilder\SqlClasses;
+
 use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
 
 
-final class SqlBuilderBuildAlter extends SqlBuilderAbstract
+final class SqlBuilderAlter extends SqlBuilderAbstract
 {
 	protected $table;
 	protected $alter_type;
@@ -47,7 +48,7 @@ final class SqlBuilderBuildAlter extends SqlBuilderAbstract
 	{
 		if ($column == null && $type == null) {
 			//return false;
-			throw new SqlBuilderBuildAlterException('Column and type is required to add a column.');
+			throw new SqlBuilderAlterException('Column and type is required to add a column.');
 		}
 		$this->_defaults($args);
 		$this->columns[$column] = array('type'=>$type,'args'=>$args);
@@ -59,7 +60,7 @@ final class SqlBuilderBuildAlter extends SqlBuilderAbstract
 	public function alterCol($column = null, $toWhat = null, $args = array())
 	{
 		if ($column==null || $toWhat == null) {
-			throw new SqlBuilderBuildAlterException('Column and what it should be changed to is required for alterColumn()');
+			throw new SqlBuilderAlterException('Column and what it should be changed to is required for alterColumn()');
 		}
 		$this->_defaults($args);
 		$this->alterColumn = array($column, $toWhat, $args);
@@ -259,4 +260,4 @@ final class SqlBuilderBuildAlter extends SqlBuilderAbstract
 }
 
 
-class SqlBuilderBuildAlterException extends \Exception{}
+class SqlBuilderAlterException extends \Exception{}

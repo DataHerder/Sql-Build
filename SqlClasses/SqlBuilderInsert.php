@@ -27,7 +27,7 @@
 
 namespace SqlBuilder\SqlClasses;
 use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
-
+use \SqlBuilder\SqlClasses\Exceptions\SqlBuilderInsertException as SqlBuilderInsertException;
 
 /**
 * SqlBuilderInsert creates and constructs an insert sql
@@ -40,15 +40,21 @@ use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
  */
 final class SqlBuilderInsert extends SqlBuilderAbstract
 {
-	protected $sql;
+	private $sql;
 
 
-	protected $columns = array();
-	protected $values_ = array();
+	private $columns = array();
+	private $values = array();
+	private $dupeOn = null;
 
 
 	/**
-	 * Constructer
+	 * Construct the insert statement
+	 *
+	 * This is handled by Sql
+	 *
+	 * @param string $syntax
+	 * @param null $bootstrap
 	 */
 	public function __construct($syntax='mysql', $bootstrap = null)
 	{
@@ -57,18 +63,27 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 	}
 
 
+	/**
+	 * Invoke for the insert function
+	 *
+	 * @deprecated invokes on other objects than
+	 *   selects is a bit frivolous and harder to read
+	 * @param $table
+	 * @param $values
+	 * @return object
+	 */
 	public function __invoke( $table, $values ) {
 		return $this->insert($table, $values);
 	}
 
 
-
 	/**
 	 * insert function
-	 * 
+	 *
 	 * @access public
 	 * @param string $table
 	 * @param array $values
+	 * @throws Exceptions\SqlBuilderInsertException
 	 * @return object $this
 	 */
 	public function insert( $table = null, $values = null )
@@ -83,12 +98,19 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 		if ( ! is_array($values) ) {
 			throw new SqlBuilderInsertException('Insert columns and values must be an array');
 		}
+
+		// reset
+		$this->columns = array();
+		$this->values = array();
+		$this->dupeOn = null;
+
+
 		$this->table = preg_replace('/`|"/','',$table);
 
 		//only one row
 		if ( $this->isAssoc($values) ) {
 			$this->columns = array_keys($values);
-			$this->values_ = array_values($values);
+			$this->values = array_values($values);
 		}
 		elseif ( is_array($values) ) {
 			// this is a multi row insert
@@ -102,28 +124,24 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 					throw new SqlBuilderInsertException('For multi row insert, each row requires an associative array');
 				}
 				else {
-					$this->values_[] = array_values($values[$i]);
+					$this->values[] = array_values($values[$i]);
 				}
-				//array_push($values__, join(', ',$values_));
 			}
 		}
-		//$this->sql = $sql;
 		return $this;
 	}
 
 
 	/**
-	 * insertData requires an array
-	 * 
-	 * @param string $string
-	 * @return boolean
+	 * Reading from a csvFile
+	 *
+	 * Currently unavailable to later release
+	 *
+	 * @param $file
+	 * @return array
+	 * @throws Exceptions\SqlBuilderInsertException
 	 */
-	public function insertData( $args = null )
-	{
-		
-	}
-
-	public function getCsv( $file )
+	private function getCsv( $file )
 	{
 		$handle = fopen($file,'r');
 		if (!$handle) {
@@ -152,8 +170,21 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 	}
 
 
-
-
+	/**
+	 * On duplicate key update signature
+	 *
+	 * @param string $set
+	 * @return SqlBuilderInsert
+	 * @throws Exceptions\SqlBuilderInsertException
+	 */
+	public function onDuplicateKey($set = '')
+	{
+		if ($set == '') {
+			throw new SqlBuilderInsertException("ON DUPLICATE KEY needs an UPDATE statement");
+		}
+		$this->dupeOn = $set;
+		return $this;
+	}
 
 
 
@@ -165,26 +196,25 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 	{
 		$sql = "INSERT INTO ";
 		$sql.= $this->tableFormat($this->table)." ";
-		$values_ = array();
 		$columns = array();
 		for($i=0;$i<count($this->columns);$i++) {
 			$columns[] = $this->formatColumns($this->columns[$i]);
 		}
 		$values = array();
 		$m = false;
-		for($i=0;$i<count($this->values_);$i++) {
-			if (is_array($this->values_[$i])) {
+		for($i=0;$i<count($this->values);$i++) {
+			if (is_array($this->values[$i])) {
 				$m = true;
 				//multi row insert
 				$values[$i] = '(';
 				$v = array();
-				for($c=0;$c<count($this->values_[$i]);$c++){
-					$v[] = $this->formatValues($this->values_[$i][$c]);
+				for($c=0;$c<count($this->values[$i]);$c++){
+					$v[] = $this->formatValues($this->values[$i][$c]);
 				}
 				$values[$i].= join(', ', $v) . ')';
 			}
 			else {
-				$values[] = $this->formatValues($this->values_[$i]);
+				$values[] = $this->formatValues($this->values[$i]);
 			}
 		}
 		if (!$m) {
@@ -192,6 +222,9 @@ final class SqlBuilderInsert extends SqlBuilderAbstract
 		} else { $val = join(', ', $values); }
 
 		$sql.= '(' . join(', ', $columns) . ') VALUES ' . $val . "\n";
+		if (is_string($this->dupeOn) && $this->dupeOn != '') {
+			$sql.="	ON DUPLICATE KEY UPDATE ".$this->dupeOn;
+		}
 		return $sql;
 	}
 

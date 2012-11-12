@@ -28,6 +28,7 @@
 
 namespace SqlBuilder\SqlClasses;
 use \SqlBuilder\SqlClasses\Abstracts\SqlBuilderAbstract as SqlBuilderAbstract;
+use \SqlBuilder\SqlClasses\Exceptions\SqlBuilderSelectException as SqlBuilderSelectException;
 
 /**
  * SqlBuilderSelect, constructs builder class
@@ -46,7 +47,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	protected $aliases = array();
 	protected $fields = array();
 	protected $increment = 0;
-	protected $range = array();
+	public $range = array();
 	protected $user_range = array();
 	protected $current_alias = '';
 
@@ -85,6 +86,11 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		if ( !is_string($where) && $where != null ) {
 			throw new SqlBuilderSelectException('Invoke requires the where clause to be a string');
 		}
+
+		// meets criteria - reset the fields
+		$this->rebuild();
+
+
 		$table = preg_replace('/`|"/','',$table);
 		if ( strpos($table,',') !== false ) {
 			$tmp = explode(',', $table);
@@ -135,6 +141,10 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 		if (!is_string($table)) {
 			throw new SqlBuilderSelectException('SqlBuilderSelect select method only requires strings or null values for table.  If you want more complexity, use the "from" method');
 		}
+
+		// flush out all old stuff
+		//$this->rebuild();
+
 		if (is_string($fields)) {
 			if (strpos($fields, ',') !== false) {
 				$tmp = explode(',', $fields);
@@ -165,21 +175,24 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	}
 
 
-
-
 	/**
 	 * From is for more complex querying
-	 * 
+	 *
 	 * @access public
 	 * @param array $tables
 	 * @param mixed $fields string or array
-	 * @return object $this
+	 * @throws Exceptions\SqlBuilderSelectException
+	 * @return $this (object)
 	 */
 	public function from( array $tables=array(), $fields = null )
 	{
 		if ( empty($tables) ) {
 			throw new SqlBuilderSelectException('SqlBuilderSelect requires array for tables variable');
 		}
+
+		// flush out all old stuff
+		//$this->rebuild();
+
 		if ( is_array($tables) ) {
 			if ( $this->isAssoc($tables) ) {
 				foreach( $tables as $alias => $table ) {
@@ -198,14 +211,18 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 				}
 				elseif ( is_string($fields) ) {
 					if ( strpos($fields,',') !== false ) {
-						$fields_ = split(',',$fields);
+						$fields_ = explode(',',$fields);
 						for( $i=0;$i<count($fields_); $i++ ) {
-							$this->fields[$this->user_range[0]] = $fields_[$i];
+							$this->fields[$this->user_range[0]][] = $fields_[$i];
 						}
 					}
-					elseif ( $fields != '*' ) { $f = $fields; }
-					else { $f = '*'; }
-					$this->fields[$this->user_range[0]] = $f;
+					elseif ( $fields != '*' ) {
+						$f = $fields;
+						$this->fields[$this->user_range[0]][] = $f;
+					} else {
+						$f = '*';
+						$this->fields[$this->user_range[0]][] = $f;
+					}
 				}
 				elseif ( is_array($fields) ) {
 					if ( $this->isAssoc($fields) ) {
@@ -228,8 +245,10 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 								}
 							}
 							else {
-								//dbg_array($fields[$i]);
-								$this->fields[$this->aliases[0]][] = $fields[$i];
+								$temp_fields = array_map('trim', explode(",", $fields[$i]));
+								for ($j = 0; $j < count($temp_fields); $j++) {
+									$this->fields[$this->aliases[$i]][] = $temp_fields[$j];
+								}
 							}
 						}
 					}
@@ -246,13 +265,17 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	}
 
 
-
-
-
-
-
+	/**
+	 * Having Expression
+	 *
+	 * @param $expr
+	 * @param null $q
+	 * @return SqlBuilderSelect
+	 * @throws Exceptions\SqlBuilderSelectException
+	 */
 	public function having( $expr, $q=null )
 	{
+
 		if ( !is_string($expr) && !$expr instanceof SqlBuilderExpression) {
 			throw new SqlBuilderSelectException('First parameter is expected to be a string');
 		}
@@ -270,15 +293,12 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	}
 
 
-
-
-
-
 	/**
 	 * groupBy method
-	 * 
+	 *
 	 * @access public
 	 * @param string $field
+	 * @throws Exceptions\SqlBuilderSelectException
 	 * @return object $this
 	 */
 	public function groupBy( $field )
@@ -351,8 +371,8 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	 * limit method
 	 * 
 	 * @access public
-	 * @param numeric $num1
-	 * @param numeric $num2
+	 * @param integer $num1
+	 * @param integer $num2
 	 * @return object $this
 	 */
 	public function limit( $num1,$num2=null )
@@ -366,14 +386,11 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 	}
 
 
-
-
 	/**
 	 * test method, when set SqlBuilder creates EXPLAIN sql and returns
 	 * it's result
-	 * 
+	 *
 	 * @access public
-	 * @param string $field
 	 * @return object $this
 	 */
 	public function test()
@@ -385,8 +402,7 @@ final class SqlBuilderSelect extends SqlBuilderAbstract
 
 
 	/**
-	 * --deprecated due to Sql Wrapper
-	 * method rebuild flushes out all elements 
+	 * Method rebuild flushes out all elements
 	 * 
 	 * @access public
 	 * @param null

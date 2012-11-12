@@ -4,7 +4,7 @@
  * Sql Wrapper File containing the wrapper for the Sql Builder Class
  * 
  * 
- * Copyright (C) 2011  Paul Carlton
+ * Copyright (C) 2012  Paul Carlton
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,15 +23,21 @@
  * @package     Sql
  * @license     GNU license
  * @version     0.1
- * @link        my.public.repo
- * @since       File available since
+ * @link        https://github.com/DataHerder/Sql-Build
  */
 
 
 namespace SqlBuilder;
 
-use SqlBuilder\SqlBootstrap\SqlBootstrap as SqlBootstrap;
-use SqlBuilder\SqlBootstrap\SqlBuilderBootstrapAbstract as SqlBuilderBootstrapAbstract;
+// require the bootstrap for autoloading
+require "SqlBootstrap/SqlBootstrapLibrary.php";
+
+// define bootstrap namespace shortcut
+use SqlBuilder\SqlBootstrap\SqlBootstrapLibrary as SqlBootstrapLibrary;
+// run bootstrap autoload on startup
+SqlBootstrapLibrary::initAutoload();
+
+// define the namespaces
 use SqlBuilder\SqlDatabase\SqlDatabase as SqlDatabase;
 use SqlBuilder\SqlClasses\SqlBuilderSelect as SqlBuilderSelect;
 use SqlBuilder\SqlClasses\SqlBuilderUpdate as SqlBuilderUpdate;
@@ -39,23 +45,6 @@ use SqlBuilder\SqlClasses\SqlBuilderInsert as SqlBuilderInsert;
 use SqlBuilder\SqlClasses\SqlBuilderDelete as SqlBuilderDelete;
 use SqlBuilder\SqlClasses\SqlBuilderAlter as SqlBuilderAlter;
 use SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
-use SqlBuilder\SqlClasses\SqlExceptions\SqlException as SqlException;
-
-/**
- * A bootstrap is uniquely created by you, below is where the
- * example bootstrap is located.. A bootstrap should created
- * BEFORE instantiating Sql ex:
- * 
- * 	class SqlBootstrap extends SqlBootstrapAbstract {
- * 		protected function _init() {...}
- * 	}
- * 	$sql = new Sql;
- * 
- * You can either change the below file to spec and uncomment
- * this line or you can create your own bootstrap somewhere else
- * and include it in your file after including this file (Sql.php).
- */
-
 
 /**
  * Class Sql
@@ -87,36 +76,61 @@ use SqlBuilder\SqlClasses\SqlExceptions\SqlException as SqlException;
 final class Sql
 {
 
-	protected $SqlClass = null;
-	protected $bootstrap;
-	protected $log = false;
-	protected $logfile = 'logfile.sql';
-	protected $verbose = false;
-	protected static $syntax = 'mysql';
-	protected static $DbApi = null;
-
+	private $SqlClass = null;
+	private $bootstrap;
+	private $log = false;
+	private $logfile = 'logfile.sql';
+	private $verbose = false;
+	private static $syntax = 'mysql';
+	private static $DbApi = null;
 
 
 	/**
 	 * By calling a type in __construct allows you to take advantage
 	 * of the __invoke function for quick instantiation on inserts and updates
-	 * 
-	 * $sql = new Sql('insert');
+	 *
+	 * $sql = new Sql('insert', new Bootstrap);
 	 * $rows = $sql('table',array(array('field1,'field2'),array('field1','field2')))->execute();
-	 * 
-	 * @param (string) $type
-	 * @return (object) $this
+	 *
+	 * @param mixed $type_or_params
+	 * @param mixed $bootstrap
+	 * @internal param null $type
+	 * @internal param null $db_ref
+	 * @internal param $ (string) $type
+	 * @return \SqlBuilder\Sql (object) $this
 	 */
-	function __construct( $type = null, $db_ref = null )
+	function __construct($type_or_params = array(), &$bootstrap = null)
 	{
+		if (is_string($type_or_params)) {
+			$type = $type_or_params;
+			$type = null;
+			$db_ref = null;
+		} elseif (is_array($type_or_params)) {
+			if (isSet($type_or_params['type'])) {
+				$type = $type_or_params['type'];
+			} else {
+				$type = null;
+			}
+			if (isSet($type_or_params['db_ref'])) {
+				$db_ref = null;
+			}
+		} elseif (is_object($type_or_params) && $type_or_params instanceof \SqlBuilder\SqlBootstrap\SqlBootstrapAbstract) {
+			$bootstrap = $type_or_params;
+			$type = 'select';
+			$db_ref = null;
+		}
 		// we are not constructing the Abstract
 		// we really only need to extend the abstract for the static Expression method
 		// boot strap should only be called ONCE so it's instantiated BEFORE
 		// the abstract __construct();  reason being is that for every new 
 		// sql object created a bootstrap will be created, we don't need that
 		// we only need an element FROM the bootstrap, so call it first
-		if ($type !== false ) { //self instantiated
-			$this->bootstrap = new SqlBootstrap;
+		if (is_string($type)) { //self instantiated
+			if (is_object($bootstrap) && $bootstrap instanceof \SqlBuilder\SqlBootstrap\SqlBootstrapAbstract) {
+				$this->bootstrap = $bootstrap;
+			} else {
+				$this->bootstrap = new \SqlBootstrap;
+			}
 			self::$DbApi = new SqlDatabase;
 			$dsn = $this->bootstrap->load('dsn');
 			if ( is_array($dsn) || is_string($dsn) ) {
@@ -124,14 +138,14 @@ final class Sql
 					self::$DbApi->setup($dsn);
 					$syntax_type = self::$DbApi->getConnectionType();
 					self::$syntax = $syntax_type;
-				} catch (Exception $e) {
+				} catch (\Exception $e) {
 					print $e->getMessage();
 					print pg_last_error();
 					die;
 				}
 			}
 			if ( $type == null ) {
-				return; //do nothing
+				return null; //do nothing
 			}
 			else {
 				//this all
@@ -151,21 +165,45 @@ final class Sql
 	}
 
 
+	/**
+	 * Creates an expression object on the fly for sql statements
+	 *
+	 * @static
+	 * @access public
+	 * @param $type
+	 * @param $data
+	 * @param null $alias
+	 * @return SqlClasses\SqlBuilderExpression
+	 */
 	public static function expr($type, $data, $alias = null)
 	{
 		$Expr = new SqlBuilderExpression($type, $data, $alias);
 		return $Expr;
 	}
 
+	/**
+	 * Shorthand shell for expr($type, $data, $alias = null)
+	 *
+	 * @see Sql::expr
+	 * @static
+	 * @access public
+	 * @param $type
+	 * @param $data
+	 * @param null $alias
+	 * @return SqlClasses\SqlBuilderExpression
+	 */
+	public static function e($type, $data, $alias = null) {
+		return self::expr($type, $data, $alias);
+	}
 
 
 	/**
 	 * The most basic call of the class $Sql('table','field','where');
-	 * 
-	 * @param (string) $table
-	 * @param (string) $fields
-	 * @param (string) $where
-	 * @return (object) $this
+	 *
+	 * @param null $table
+	 * @param null $fields
+	 * @param null $where
+	 * @return \SqlBuilder\Sql (object) $this
 	 */
 	public function __invoke( $table = null, $fields = null, $where = null )
 	{
@@ -181,7 +219,13 @@ final class Sql
 	}
 
 
-	protected function loadSqlClass( $method )
+	/**
+	 * This function
+	 *
+	 * @param $method
+	 * @throws SqlClasses\Exceptions\SqlException
+	 */
+	private function loadSqlClass( $method )
 	{
 		if ( $method == 'select' ) {
 			$this->__destroyObject();
@@ -205,7 +249,7 @@ final class Sql
 		}
 		elseif ($method == 'alter' || $method == 'build') {
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderBuildAlter(self::$syntax, $this->bootstrap);
+			$this->SqlClass = new SqlBuilderAlter(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
 		elseif ($method == 'raw') {
@@ -217,24 +261,35 @@ final class Sql
 	}
 
 
-
+	/**
+	 * This creates a new instance of the sql class;
+	 * Purpose is for embedded select statements
+	 * and expressions
+	 *
+	 * @return Sql
+	 */
 	public static function gi() {
 		$db_ref =& self::$DbApi;
-		$B = new Sql(false, $db_ref);
+		$B = new Sql(array('type'=>false, array('db_ref'=>$db_ref)));
 		return $B;
 	}
 
 
 	/**
 	 * This essentially wraps the classes together with the magic method __call
-	 * 
-	 * @param (string) $method
+	 *
 	 * @param (array) $params
-	 * @return (object|string|array) $this->SqlClass
+	 * @param array $params
+	 * @throws SqlClasses\Exceptions\SqlException
+	 * @return mixed|\SqlBuilder\Sql (object|string|array) $this->SqlClass
 	 */
 	public function __call( $method, $params=array() )
 	{
-		$syntax_type = self::$DbApi->getConnectionType();
+		if (is_object(self::$DbApi)) {
+			$syntax_type = self::$DbApi->getConnectionType();
+		} else {
+			$syntax_type = 'mysql';
+		}
 		if ( $method == 'gi') {
 			//get instance
 			$B = new Sql;
@@ -310,34 +365,24 @@ final class Sql
 			}
 		}
 		else {
-			throw new SqlException('Method does not exist for SqlBuilder');
+			throw new SqlException('
+				This method does not exist for SqlBuilder. It\'s likely you are making a database call
+				when you haven\'t established a database connection yet.  Please make sure you have a
+				valid database connection before calling "execute" or "query"'
+			);
 		}
 		return $this;
 	}
-
-	/**
-	 * returns the executed raw class
-	 * needs added support for sql, this is where
-	 * the database API will be called and all future
-	 * 
-	 * access public
-	 * param null
-	 * return mixed
-	 */
-	/*public function execute()
-	{
-		// return $this;
-	}*/
 
 
 	/**
 	 * this function destroys SqlClass before instantiating a new one
 	 * 
-	 * @access protected
+	 * @access private
 	 * @param null
 	 * @return null
 	 */
-	protected function __destroyObject()
+	private function __destroyObject()
 	{
 		// detroy $this->SqlClass before creating a new one
 		if ( is_object($this->SqlClass) ) {
@@ -346,14 +391,29 @@ final class Sql
 	}
 
 
-
-	public function log( $verbos = false )
+	/**
+	 * Turn on logging
+	 *
+	 * @param string $log_file
+	 * @param bool $verbose
+	 * @return Sql
+	 */
+	public function log($log_file = '', $verbose = false)
 	{
+		if ($log_file !== false && is_string($log_file) && $log_file != '') {
+			$this->logfile = $log_file;
+		}
 		$this->log = true;
-		$this->verbose = $verbos;
+		$this->verbose = $verbose;
 		return $this;
 	}
 
+
+	/**
+	 * Turn off logging
+	 *
+	 * @return Sql
+	 */
 	public function unlog()
 	{
 		$this->log = false;
@@ -362,17 +422,24 @@ final class Sql
 	}
 
 
-
-	private function logSql( $sql )
+	/**
+	 * Log the SQL in a file
+	 *
+	 * @throws SqlClasses\Exceptions\SqlException
+	 */
+	private function logSql()
 	{
 		//this will log an sql file
 		$fh = fopen($this->logfile, 'a'); // or die("Can't open file");
-		#print 'h';
 		if (!$fh) {
-		#	//throw new SqlException('Unable to load log file!  Check your permissions or the directory you want to store your sqls in.');
-			die('Unable to load log file!  Check your permissions or the directory you want to store your data.');
+			throw new SqlException('Unable to load log file! Check your permissions on the directory or file you want to store your SQL queries in.');
 		}
-		fwrite($fh, $sql."\n");
+		if ($this->verbose) {
+			$sql_string = $this->explode()->__toString();
+		} else {
+			$sql_string = $this->__toString();
+		}
+		fwrite($fh, $sql_string."\n");
 		fclose($fh);
 	}
 
@@ -383,12 +450,12 @@ final class Sql
 	 * for instance joins.  You can join on updates and selects
 	 * but not inserts
 	 * 
-	 * @access protected
+	 * @access private
 	 * @return string (select|update|insert|Expresssion|Delete)
 	 */
-	protected function sniffMyself()
+	private function sniffMyself()
 	{
-		// sniff myself
+		// sniff myself - smells goooooood
 		if ( $this->SqlClass instanceof SqlBuilderSelect ) {
 			// this is a select object
 			return "select";
@@ -407,7 +474,7 @@ final class Sql
 		elseif ( $this->SqlClass instanceof SqlBuilderDelete ) {
 			return 'delete';
 		}
-		elseif ( $this->SqlClass instanceof SqlBuilderBuildAlter ) {
+		elseif ( $this->SqlClass instanceof SqlBuilderAlter ) {
 			return 'alter';
 		}
 	}
@@ -432,16 +499,38 @@ final class Sql
 	}
 
 
-
+	/**
+	 * This of course prints out the sql string from the class
+	 *
+	 * It acts as a shell to the __toString() magic function found
+	 * in each SqlBuilder instance
+	 *
+	 * @return string
+	 */
 	public function __toString()
 	{
 		$sql = $this->SqlClass."";
 
-		if ($this->log) {
-			$this->logSql($sql);
-		}
+		/**
+		 * deprecate - should be in execute and query
+		 * if ($this->log) {
+		 * 	$this->logSql($sql);
+		 * }
+		 */
 		return $sql;
 	}
 }
 
 
+/**
+ * We have this class included with the file for brevity
+ *
+ * All other exceptions are in their respective locations in the "Exceptions" folder
+ * and properly namespaced
+ */
+class SqlException extends \Exception
+{
+	public function __construct($message, $code = 0, \Exception $previous = null) {
+		parent::__construct($message, $code, $previous);
+	}
+}

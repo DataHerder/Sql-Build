@@ -1,7 +1,13 @@
 <?php
 namespace SqlBuilder\SqlClasses\Abstracts;
 
-use \SqlBuilder\SqlClasses\Exceptions\SqlAbstractException as SqlAbstractException;
+use \SqlBuilder\SqlClasses\Abstracts\Exceptions\SqlBuilderWhereAbstractException as SqlBuilderWhereAbstractException;
+use \SqlBuilder\SqlClasses\SqlBuilderSelect as SqlBuilderSelect;
+use \SqlBuilder\SqlClasses\SqlBuilderDelete as SqlBuilderDelete;
+use \SqlBuilder\SqlClasses\SqlBuilderUpdate as SqlBuilderUpdate;
+use \SqlBuilder\SqlClasses\SqlBuilderInsert as SqlBuilderInsert;
+use \SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
+use \SqlBuilder\SqlClasses\Exceptions\SqlBuilderSelectException as SqlBuilderSelectException;
 
 
 abstract class SqlBuilderWhereAbstract {
@@ -14,10 +20,11 @@ abstract class SqlBuilderWhereAbstract {
 
 	/**
 	 * where method, creates the where clause
-	 * 
+	 *
 	 * @access public
 	 * @param string $str
 	 * @param mixed $q string array
+	 * @throws Exceptions\SqlBuilderWhereAbstractException
 	 * @return object $this
 	 */
 	public function where( $str=null, $q='-%skip%-' )
@@ -25,7 +32,7 @@ abstract class SqlBuilderWhereAbstract {
 		//print $str;
 		$type = self::_sniffMyself();
 		if (($type != 'select' && $type != 'delete' && $type != 'update') || (isSet($this->type) && $this->type == 'TRUNCATE')) {
-			throw new SqlAbstractException('The WHERE clause is reserved only for SELECT, UPDATE, and DELETE statements');
+			throw new SqlBuilderWhereAbstractException('The WHERE clause is reserved only for SELECT, UPDATE, and DELETE statements');
 		}
 		if ( is_null($str) ) {
 			$str = '1 = 1';
@@ -55,7 +62,7 @@ abstract class SqlBuilderWhereAbstract {
 			}
 		}
 		else {
-			throw new SqlAbstractException('Invalid inputs for where statement, requires null or string values');
+			throw new SqlBuilderWhereAbstractException('Invalid inputs for where statement, requires null or string values');
 		}
 		if ( $this->joinThese === true ) {
 			array_push($this->joinWhere, $str);
@@ -94,19 +101,17 @@ abstract class SqlBuilderWhereAbstract {
 	}
 
 
-
-
-
 	/**
 	 * joinThese is for the where clause by creating
 	 * adjacent where's to join together in one larger
 	 * where clause... ex:
-	 * 
+	 *
 	 * ( ( ( (`column1` = 'data1') AND (`column2` = 'data2' ) ) OR (`column3` = 'data3' ) ) AND
 	 * ( ( (`column4` = 'data4') AND (`column5` = 'data5' ) ) OR (`column6` = 'data6' ) ) )
-	 * 
+	 *
 	 * @access public
 	 * @param string $with
+	 * @throws \SqlBuilder\SqlClasses\Exceptions\SqlBuilderSelectException
 	 * @return object $this
 	 */
 	public function joinThese( $with = 'and' )
@@ -141,6 +146,19 @@ abstract class SqlBuilderWhereAbstract {
 	}
 
 
+	/**
+	 * A shorthand shell for joinTheseFinish()
+	 *
+	 * @see $this->joinTheseFinish()
+	 * @access public
+	 * @param string $type
+	 * @return object
+	 */
+	public function joinFinish($type = 'and')
+	{
+		return $this->joinTheseFinish($type);
+	}
+
 
 	/**
 	 * joinWhere joins the current array of wheres
@@ -172,7 +190,7 @@ abstract class SqlBuilderWhereAbstract {
 	 * but not inserts
 	 * 
 	 * @access protected
-	 * @return string (select|update|insert|Expresssion|Delete)
+	 * @return mixed (string|null)
 	 */
 	protected function _sniffMyself()
 	{
@@ -194,6 +212,7 @@ abstract class SqlBuilderWhereAbstract {
 		elseif ( $this instanceof SqlBuilderDelete ) {
 			return 'delete';
 		}
+		return null;
 	}
 
 
