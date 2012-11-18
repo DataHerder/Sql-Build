@@ -40,16 +40,30 @@ use \SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
 abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements SqlBuilderInterface
 {
 
+	/**
+	 * Database type
+	 *
+	 * @var string
+	 */
 	protected $database_type = 'mysql';
+
+	/**
+	 * The syntax
+	 *
+	 * @var string
+	 */
 	protected $syntax = 'mysql';
-	// DbApi reference for statements
-	// protected static $db;
-	// public $db;
+
+	/**
+	 * The variable the holds extra formatting logic in a variable
+	 *
+	 * @var null
+	 */
 	protected $func_format = null;
 
 
 	/**
-	 * Constructer class, determines if we need to create a mysql connection
+	 * Constructor class, determines if we need to create a mysql connection
 	 * This does not create a mysql connection on default, parameters need to be
 	 * passed
 	 *
@@ -247,11 +261,11 @@ abstract class SqlBuilderAbstract extends SqlBuilderJoinsAbstract implements Sql
 	}
 
 
-
-
-
-
-
+	/**
+	 * Return the field type
+	 *
+	 * @return string
+	 */
 	protected function getFieldType()
 	{
 		if (is_object($this->db)) {

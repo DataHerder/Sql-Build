@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Sql Wrapper File containing the wrapper for the Sql Builder Class
  * 
@@ -43,6 +42,7 @@ use SqlBuilder\SqlClasses\SqlBuilderSelect as SqlBuilderSelect;
 use SqlBuilder\SqlClasses\SqlBuilderUpdate as SqlBuilderUpdate;
 use SqlBuilder\SqlClasses\SqlBuilderInsert as SqlBuilderInsert;
 use SqlBuilder\SqlClasses\SqlBuilderDelete as SqlBuilderDelete;
+use SqlBuilder\SqlClasses\SqlBuilderRaw as SqlBuilderRaw;
 use SqlBuilder\SqlClasses\SqlBuilderAlter as SqlBuilderAlter;
 use SqlBuilder\SqlClasses\SqlBuilderExpression as SqlBuilderExpression;
 
@@ -214,6 +214,12 @@ final class Sql
 			$this->SqlClass = new SqlBuilderSelect(self::$syntax, $this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
+		if (is_string($table) && is_null($fields) && is_null($where)) {
+			if (preg_match("/^(select|update|insert)\s/i", trim($table))) {
+				// it's a raw statement
+				$this->loadSqlClass('raw');
+			}
+		}
 		$this->SqlClass->__invoke($table, $fields, $where);
 		return $this;
 	}
@@ -223,7 +229,7 @@ final class Sql
 	 * This function
 	 *
 	 * @param $method
-	 * @throws SqlClasses\Exceptions\SqlException
+	 * @throws SqlException
 	 */
 	private function loadSqlClass( $method )
 	{
@@ -253,9 +259,8 @@ final class Sql
 			$this->SqlClass->db =& self::$DbApi;
 		}
 		elseif ($method == 'raw') {
-			throw new SqlException('Raw query not supported yet');
 			$this->__destroyObject();
-			$this->SqlClass = new SqlBuilderRawQuery($this->bootstrap);
+			$this->SqlClass = new SqlBuilderRaw($this->bootstrap);
 			$this->SqlClass->db =& self::$DbApi;
 		}
 	}
@@ -278,9 +283,9 @@ final class Sql
 	/**
 	 * This essentially wraps the classes together with the magic method __call
 	 *
-	 * @param (array) $params
+	 * @param string $method
 	 * @param array $params
-	 * @throws SqlClasses\Exceptions\SqlException
+	 * @throws SqlException
 	 * @return mixed|\SqlBuilder\Sql (object|string|array) $this->SqlClass
 	 */
 	public function __call( $method, $params=array() )
@@ -476,6 +481,9 @@ final class Sql
 		}
 		elseif ( $this->SqlClass instanceof SqlBuilderAlter ) {
 			return 'alter';
+		}
+		elseif ( $this->SqlClass instanceof SqlBuilderRaw ) {
+			return 'raw';
 		}
 	}
 

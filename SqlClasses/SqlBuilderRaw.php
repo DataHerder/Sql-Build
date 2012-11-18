@@ -4,6 +4,8 @@ namespace SqlBuilder\SqlClasses;
 
 final class SqlBuilderRaw extends Abstracts\SqlBuilderAbstract {
 
+	protected $sql = '';
+
 	/**
 	 *
 	 */
@@ -12,6 +14,17 @@ final class SqlBuilderRaw extends Abstracts\SqlBuilderAbstract {
 		parent::__construct($bootstrap);
 		$this->syntax = $syntax;
 	}
+
+	public function __invoke($sql)
+	{
+		$this->sql = $sql;
+	}
+
+	public function __toString()
+	{
+		return $this->sql;
+	}
+
 
 }
 

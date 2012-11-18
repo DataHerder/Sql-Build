@@ -1,4 +1,31 @@
 <?php
+/**
+ * Sql Database file
+ *
+ *
+ * Copyright (C) 2011  Paul Carlton
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @category    Structured Query Language
+ * @package     SqlBuilder
+ * @license     GNU license
+ * @version     0.1
+ * @link        my.public.repo
+ * @since       File available since
+ */
+
 
 namespace SqlBuilder\SqlDatabase;
 
@@ -6,16 +33,67 @@ use \SqlBuilder\SqlDatabase\Drivers\SqlMysql as SqlMysql;
 use \SqlBuilder\SqlDatabase\Drivers\SqlPostgresql as SqlPostgresql;
 
 
+/**
+ * The main sql class that manages the sql database connections
+ *
+ * @package SqlDatabase
+ */
 class SqlDatabase
 {
+
+	/**
+	 * The database connection array
+	 *
+	 * @var array
+	 */
 	protected $database_connections = array();
-	// current resource and current method are both references
-	// from the database_connectsions variable
+
+	/**
+	 * Reference to the current method
+	 *
+	 * Current resource and current method are both references
+	 * from the database_connections variable
+	 *
+	 * @var null|string
+	 */
 	public $current_method = null;
+
+	/**
+	 * Reference to the current resource
+	 *
+	 * Current resource and current method are both references
+	 * from the database_connections variable
+	 *
+	 * @var resource|null
+	 */
 	protected $current_resource = null;
+
+	/**
+	 * External die function
+	 *
+	 * @var Function|null
+	 */
 	protected $die_func = null;
+
+	/**
+	 * The last error returned
+	 *
+	 * @var null | string
+	 */
 	protected $last_error;
 
+
+	/**
+	 * Last error message
+	 *
+	 * @var string
+	 */
+	protected $error_message = '';
+
+
+	/**
+	 * constructor
+	 */
 	public function __construct()
 	{
 		$this->database_methods['mysql'] = new SqlMysql;
@@ -29,6 +107,15 @@ class SqlDatabase
 		return $this;
 	}
 
+
+	/**
+	 * Calls the correct method on the current resource
+	 *
+	 * @param $method
+	 * @param array $params
+	 * @return bool|mixed
+	 * @throws SqlDatabaseException
+	 */
 	public function __call( $method, $params = array() )
 	{
 		// we want to mainly route all calls to the current method being used
@@ -53,19 +140,26 @@ class SqlDatabase
 		}
 	}
 
+
+	/**
+	 * Get the last error in the form of a class
+	 *
+	 * @return SqlDatabaseError
+	 */
 	public function getError()
 	{
-		#$arr = new stdClass;
-		#$arr->error_type = $this->getConnectionType();
-		#$arr->last_error = $this->last_error;
-		#$arr->error_message = $this->error_message;
-		$arr = new DatabaseError;
+		$arr = new SqlDatabaseError;
 		$arr->error_type = $this->getConnectionType();
 		$arr->last_error = $this->last_error;
 		$arr->error_message = $this->error_message;
 		return $arr;
 	}
 
+	/**
+	 * Return the current connection
+	 *
+	 * @return string
+	 */
 	public function getConnectionType()
 	{
 		if ($this->current_method instanceof SqlMysql) {
@@ -76,7 +170,14 @@ class SqlDatabase
 		}
 	}
 
-	// a function that parses the dsn, allows either
+
+	/**
+	 * Parses the dsn, allows either a string or an array
+	 *
+	 * @param $dsn
+	 * @return string
+	 * @throws SqlDatabaseException
+	 */
 	private function parseHost( $dsn )
 	{
 		if ($dsn == '') {
@@ -109,12 +210,25 @@ class SqlDatabase
 	}
 
 
+	/**
+	 * Make sure we are connected
+	 *
+	 * @return bool
+	 */
 	public function checkConnection()
 	{
 		return is_resource($this->current_resource);
 	}
 
 
+	/**
+	 * Setup the connection
+	 *
+	 * @param string $type
+	 * @param string $dsn
+	 * @return bool|null
+	 * @throws SqlDatabaseException
+	 */
 	public function setup( $type = '', $dsn = '' )
 	{
 		if ( (!is_array($type)) &&  (($type == null || $type == '' || !is_string($type)) || ($dsn == null || $dsn == '' || empty($dsn))) ) {
@@ -155,6 +269,16 @@ class SqlDatabase
 	}
 
 
+	/**
+	 * Sets up the connection to the database and
+	 * sets the necessary reference variables on the currently
+	 * made connection
+	 *
+	 * @param $type
+	 * @param $dsn
+	 * @return bool
+	 * @throws SqlDatabaseException
+	 */
 	protected function setConnection($type, $dsn)
 	{
 		$host = $this->parseHost($dsn);
@@ -173,12 +297,24 @@ class SqlDatabase
 	}
 
 
+	/**
+	 * A shell to return current database connections
+	 *
+	 * @deprecated
+	 */
 	public function databaseConnections()
 	{
 		// return current database connections
 	}
 
 
+	/**
+	 * Add a connection to the array of connections
+	 *
+	 * @param $type
+	 * @param $dsn
+	 * @return null
+	 */
 	public function addConnection( $type, $dsn )
 	{
 		$host = $this->parseHost($dsn);
@@ -192,6 +328,13 @@ class SqlDatabase
 	}
 
 
+	/**
+	 * Switch the database currently in use
+	 *
+	 * @param $database_name
+	 * @param null $type
+	 * @throws SqlDatabaseException
+	 */
 	public function switchDatabase( $database_name, $type = null )
 	{
 		if ( $database_name == '' ) {
@@ -203,7 +346,14 @@ class SqlDatabase
 	}
 
 
-
+	/**
+	 * Switch the database server currently in use
+	 *
+	 * @param string $type
+	 * @param string $host
+	 * @return null
+	 * @throws SqlDatabaseException
+	 */
 	public function switchServer($type = '', $host = '')
 	{
 		if (!isSet($this->database_connections[$type][$host])) {
@@ -218,11 +368,22 @@ class SqlDatabase
 	}
 
 
-
+	/**
+	 * Not in use
+	 *
+	 * @deprecated
+	 * @param string $type
+	 * @param string $host
+	 */
 	public function switchConnection( $type = '', $host = '' )
 	{
 	}
 
+	/**
+	 * Ensure to destroy the connection to the database
+	 * when class put into garbage collection
+	 *
+	 */
 	public function __destruct()
 	{
 		unset($this->current_resource);
@@ -236,27 +397,5 @@ class SqlDatabase
 				}
 			}
 		}
-	}
-}
-
-
-
-class DatabaseError {
-	protected $errors = array();
-	protected $error_type = '';
-	protected $last_error = '';
-	protected $error_message = '';
-	public function __construct() { }
-	public function __set($key, $value) {
-		eval('$this->'.$key.' = "'.preg_replace("/\"/",'\\"',$value).'";');
-	}
-	public function __get($key) {
-		$var = '';
-		eval('$var = $this->'.$key.';');
-		return $var;
-	}
-	public function __toString()
-	{
-		return $this->error_message.': '.$this->last_error;
 	}
 }
