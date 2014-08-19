@@ -11,6 +11,9 @@
 * Quick Shorthands
 * Embed mysql functions in select without calling SqlExpression
 
+###downside
+* No longer supports PostgreSQL
+
 ### Example Usage:
 ```php
 // create the database connection
