@@ -37,4 +37,7 @@ try {
 } catch (Exception $e) {
 	print $e->getMessage();
 }
+
+# NOTE that the above select query can also be written like this as a shorthand:
+$Sql->select('my_table', '*', "name = '?' AND age = ?", array('paul', 33));
 ```
