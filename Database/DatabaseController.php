@@ -1,45 +1,8 @@
 <?php
-/**
- * Sql Database file
- *
- *
- * Copyright (C) 2011  Paul Carlton
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * @category    Structured Query Language
- * @package     SqlBuilder
- * @license     GNU license
- * @version     0.1
- * @link        my.public.repo
- * @since       File available since
- */
 
+namespace SqlBuilder\Database;
 
-namespace SqlBuilder\SqlDatabase;
-
-use \SqlBuilder\SqlDatabase\Drivers\SqlMysql as SqlMysql;
-use \SqlBuilder\SqlDatabase\Drivers\SqlPostgresql as SqlPostgresql;
-
-
-/**
- * The main sql class that manages the sql database connections
- *
- * @package SqlDatabase
- */
-class SqlDatabase
-{
+class DatabaseController {
 
 	/**
 	 * The database connection array
@@ -96,8 +59,8 @@ class SqlDatabase
 	 */
 	public function __construct()
 	{
-		$this->database_methods['mysql'] = new SqlMysql;
-		$this->database_methods['postgres'] = new SqlPostgresql;
+		$this->database_methods['mysql'] = new Drivers\Mysql;
+		//$this->database_methods['postgres'] = new SqlPostgresql;
 		// set current_method to mysql because it's the default
 		// careful, if you escape and set a different syntax without switching
 		// database connections, the default will remain the default and will
@@ -113,20 +76,22 @@ class SqlDatabase
 	 *
 	 * @param $method
 	 * @param array $params
+	 * @throws DatabaseControllerException
 	 * @return bool|mixed
-	 * @throws SqlDatabaseException
 	 */
 	public function __call( $method, $params = array() )
 	{
 		// we want to mainly route all calls to the current method being used
 		if (method_exists($this, $method)) {
 			return call_user_func_array(array($this, $method), $params);
-		}
-		elseif (method_exists($this->current_method, $method)) {
+
+		} elseif (method_exists($this->current_method, $method)) {
+
 			array_push($params, $this->current_resource);
 			try {
-				return call_user_func_array(array($this->current_method, $method), $params);
-			} catch (SqlDatabaseError $e) {
+				$return_data = call_user_func_array(array($this->current_method, $method), $params);
+				return $return_data;
+			} catch (DatabaseControllerException $e) {
 				//there was an error with the database
 				$parse_message = $e->getMessage();
 				list($message, $last_error) = explode(';', $parse_message);
@@ -134,21 +99,22 @@ class SqlDatabase
 				$this->error_message = $message;
 				return false;
 			}
-		}
-		else {
-			throw new SqlDatabaseException('Method "' . $method . '" does not exist for SqlDatabase');
+
+		} else {
+			throw new DatabaseControllerException('Method "' . $method . '" does not exist for SqlDatabase');
 		}
 	}
+
 
 
 	/**
 	 * Get the last error in the form of a class
 	 *
-	 * @return SqlDatabaseError
+	 * @return DatabaseControllerException
 	 */
 	public function getError()
 	{
-		$arr = new SqlDatabaseError;
+		$arr = new DatabaseControllerException;
 		$arr->error_type = $this->getConnectionType();
 		$arr->last_error = $this->last_error;
 		$arr->error_message = $this->error_message;
@@ -162,10 +128,10 @@ class SqlDatabase
 	 */
 	public function getConnectionType()
 	{
-		if ($this->current_method instanceof SqlMysql) {
+		if ($this->current_method instanceof Drivers\Mysql) {
 			return 'mysql';
 		}
-		elseif ($this->current_method instanceof SqlPostgresql) {
+		elseif ($this->current_method instanceof Drivers\Postgresql) {
 			return 'postgres';
 		}
 	}
@@ -176,14 +142,14 @@ class SqlDatabase
 	 *
 	 * @param $dsn
 	 * @return string
-	 * @throws SqlDatabaseException
+	 * @throws DatabaseControllerException
 	 */
-	private function parseHost( $dsn )
+	private function parseHost($dsn)
 	{
 		if ($dsn == '') {
 			return 'No Host Provided';
 		}
-		if ( is_string($dsn) ) {
+		if (is_string($dsn)) {
 			$data = explode(' ', $dsn);
 			$dsn_args = array();
 			for( $i=0;$i<count($data);$i++ ) {
@@ -191,17 +157,12 @@ class SqlDatabase
 				$dsn_args[$tmp[0]]=$tmp[1];
 			}
 			if ( !isSet($dsn_args['host']) && !isSet($dsn_args['server'])) {
-				throw new SqlDatabaseException('Host is required in dsn when connecting to postgres');
+				throw new DatabaseControllerException('Host is required in dsn when connecting to the database');
 			}
-			if (isSet($dsn_args['server'])) {
-				$host = $dsn_args['server'];
-			} else { $host = $dsn_args['host']; }
-			return $host;
-		}
-		elseif (is_array($dsn) && !isSet($dsn['host']) && !isSet($dsn['server'])) {
-			throw new SqlDatabaseException('Host is required in dsn when connecting to postgres');
-		}
-		elseif (is_array($dsn)) {
+			return $dsn_args['host'];
+		} elseif (is_array($dsn) && !isSet($dsn['host']) && !isSet($dsn['server'])) {
+			throw new DatabaseControllerException('Host is required in dsn when connecting to the database');
+		} elseif (is_array($dsn)) {
 			if (isSet($dsn['server'])) {
 				$host = $dsn['server'];
 			} else { $host = $dsn['host']; }
@@ -226,13 +187,17 @@ class SqlDatabase
 	 *
 	 * @param string $type
 	 * @param string $dsn
+	 * @throws DatabaseControllerException
 	 * @return bool|null
-	 * @throws SqlDatabaseException
 	 */
 	public function setup( $type = '', $dsn = '' )
 	{
-		if ( (!is_array($type)) &&  (($type == null || $type == '' || !is_string($type)) || ($dsn == null || $dsn == '' || empty($dsn))) ) {
-			throw new SqlDatabaseException('Type and / or Dsn is empty on setup');
+		//if ( (!is_array($type)) &&  (($type == null || $type == '' || !is_string($type)) || ($dsn == null || $dsn == '' || empty($dsn))) ) {
+		if ((!is_array($type)  && $type == '' && $dsn == '')) {
+			throw new DatabaseControllerException('Type and / or Dsn is empty on setup');
+		}
+		if (is_string($dsn)) {
+			$host = $this->parseHost($dsn);
 		}
 
 		if (is_array($type)) {
@@ -246,23 +211,24 @@ class SqlDatabase
 					if (is_array($dsn)) {
 						for( $i=0; $i<count($dsn); $i++ ){
 							if( !$this->setConnection($type, $dsn[$i]) ){
-								throw new SqlDatabaseException('Unable to connect to database. For '.$type.' on dsn: '.$this->parseHost($dsn[$i]));
+								throw new DatabaseControllerException('Unable to connect to database. For '.$type.' on dsn: '.$this->parseHost($dsn[$i]));
 							}
 						}
 					}
 					elseif (is_string($dsn)){
 						if( !$this->setConnection($type, $dsn) ){
-							throw new SqlDatabaseException('Unable to connect to database for '. $type.' on dsn: '.$this->parseHost($dsn[$i]));
+							throw new DatabaseControllerException('Unable to connect to database for '. $type.' on dsn: '.$this->parseHost($dsn[$i]));
 						}
 					}
 				}
 				return null;
 			}
+			return null;
 		}
 		else {
 			// call parseHost first, it ensures there is a host in the dsn
 			if (! $this->setConnection($type, $dsn) ) {
-				throw new SqlDatabaseException('Unable to connect to database for ' . $type . ' on dsn: '. $this->parseHost($dsn));
+				throw new DatabaseControllerException('Unable to connect to database for ' . $type . ' on dsn: '. $this->parseHost($dsn));
 			}
 			return null;
 		}
@@ -277,7 +243,7 @@ class SqlDatabase
 	 * @param $type
 	 * @param $dsn
 	 * @return bool
-	 * @throws SqlDatabaseException
+	 * @throws DatabaseControllerException
 	 */
 	protected function setConnection($type, $dsn)
 	{
@@ -287,7 +253,7 @@ class SqlDatabase
 		}
 		$resource = $this->database_methods[$type]->connect($dsn);
 		if ( !is_resource($resource) ) {
-			throw new SqlDatabaseException('Resource not returned on setup.  Check that your database is running, or your dsn');
+			throw new DatabaseControllerException('Resource not returned on setup.  Check that your database is running, or your dsn');
 		}
 		$this->database_connections[$type][$host]['resource'] = $resource;
 		$this->database_connections[$type][$host]['dsn'] = $dsn;
@@ -296,88 +262,6 @@ class SqlDatabase
 		return true;
 	}
 
-
-	/**
-	 * A shell to return current database connections
-	 *
-	 * @deprecated
-	 */
-	public function databaseConnections()
-	{
-		// return current database connections
-	}
-
-
-	/**
-	 * Add a connection to the array of connections
-	 *
-	 * @param $type
-	 * @param $dsn
-	 * @return null
-	 */
-	public function addConnection( $type, $dsn )
-	{
-		$host = $this->parseHost($dsn);
-		$this->database_connections[$type][$host]['dsn'] = $dsn;
-		$this->database_connections[$type][$host]['resource'] = $this->database_methods[$type]->connect($dsn);
-		unset($this->current_resource);
-		unset($this->current_method);
-		$this->current_resource =& $this->database_connections[$type][$num]['resource'];
-		$this->current_method =& $this->database_methods[$type];
-		return null;
-	}
-
-
-	/**
-	 * Switch the database currently in use
-	 *
-	 * @param $database_name
-	 * @param null $type
-	 * @throws SqlDatabaseException
-	 */
-	public function switchDatabase( $database_name, $type = null )
-	{
-		if ( $database_name == '' ) {
-			throw new SqlDatabaseException('Exception raised on switching to an undefined database');
-		}
-		else {
-			$this->current_method->switchDatabase();
-		}
-	}
-
-
-	/**
-	 * Switch the database server currently in use
-	 *
-	 * @param string $type
-	 * @param string $host
-	 * @return null
-	 * @throws SqlDatabaseException
-	 */
-	public function switchServer($type = '', $host = '')
-	{
-		if (!isSet($this->database_connections[$type][$host])) {
-			throw new SqlDatabaseException('Exception raised while switching to a connection undefined.  Careful. Attempted type='.$type.' and server='.$host);
-		}
-		unset($this->current_resource);
-		unset($this->current_method);
-		$this->current_resource =& $this->database_connections[$type][$host]['resource'];
-		$this->current_method =& $this->database_methods[$type];
-		//var_dump($this->current_resource);
-		return null;
-	}
-
-
-	/**
-	 * Not in use
-	 *
-	 * @deprecated
-	 * @param string $type
-	 * @param string $host
-	 */
-	public function switchConnection( $type = '', $host = '' )
-	{
-	}
 
 	/**
 	 * Ensure to destroy the connection to the database
@@ -398,4 +282,9 @@ class SqlDatabase
 			}
 		}
 	}
+
+
 }
+
+
+class DatabaseControllerException extends \Exception {}
