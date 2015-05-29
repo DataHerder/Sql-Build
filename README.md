@@ -14,7 +14,7 @@ try {
 	$Sql->select()
 		->table('my_table')
 		->fields('*')
-		->where("name = '?' AND age = ?", array('paul', 33))
+		->where("name = '?' AND age = ?", array('paul', 4000000000))
 	;
 	// check that it is correct
 	print $Sql;
