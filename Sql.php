@@ -47,17 +47,84 @@ class Sql {
 
 
 	/**
+	 * Constructs using a number of different argument types
+	 *
+	 * __construct('mysqli','host=localhost dbname=[dbname] user=root password=[password]', 'utf8')
+	 * __construct('mysqli', array((
+	 *   'host' => 'localhost',
+	 *   'database' => '[database]',
+	 *   'user' => 'user',
+	 *   'password' => '[password]',
+	 * ))
+	 *
+	 * @throws Database\DatabaseControllerException
+	 * @throws SqlException
+	 */
+	public function __construct()
+	{
+		$this->dbApi = new DatabaseController();
+		$num = func_num_args();
+		if ($num < 2) {
+			throw new SqlException('SqlBuilder\Sql expects database type and dsn.');
+		}
+		if ($num == 2 || $num == 3) {
+			$arg1 = func_get_arg(0);
+			$arg2 = func_get_arg(1);
+			if (is_string($arg1) && (is_string($arg2) || is_array($arg2))) {
+				$this->dbApi->setup($arg1, $arg2);
+				if (is_array($arg2) && isSet($arg2['charset'])) {
+					$this->setCharset($arg2['charset']);
+				}
+			} else {
+				throw new SqlException('Expected string or array value for dsn.  Please see documentation.');
+			}
+			if ($num == 3) {
+				$this->setCharset(func_get_arg(2));
+			}
+		} elseif ($num > 5) {
+			// setup the dsn for them
+			$dsn = 'host='.func_get_arg(1).' dbname='.func_get_arg(4).' user='.func_get_arg(2).' password='.func_get_arg(3);
+			$this->dbApi->setup(func_get_arg(0), $dsn);
+			if ($num >= 6) {
+				$this->setCharset(func_get_arg(5));
+			}
+		} else {
+			throw new SqlException('Unknown error occurred.  Please check your connections.');
+		}
+	}
+
+	/**
+	 * Returns an instance of the class, syntactic sugar for IDE
+	 *
+	 * @param string $database_type
+	 * @param string $host
+	 * @param string $user
+	 * @param string $password
+	 * @param string $db
+	 * @param string $charset
+	 * @return mixed
+	 */
+	public static function dsn($database_type = 'mysqli', $host = '', $user = '', $password = '', $db = '', $charset = 'utf8')
+	{
+		$class_name = __CLASS__;
+		return new $class_name(
+			$database_type, $host, $user, $password, $db, $charset
+		);
+	}
+
+	/**
 	 * Example use:
 	 *
-	 * __construct('mysql','host=localhost dbname=[dbname] user=root password=[password]', 'utf-8')
+	 * __construct('mysql','host=localhost dbname=[dbname] user=root password=[password]', 'utf8')
 	 *
+	 * @deprecated
 	 * @param null $type
 	 * @param null $dsn
 	 * @param string $charset
 	 */
-	public function __construct($type = null, $dsn = null, $charset = 'latin1')
+	public function ___construct($type = null, $dsn = null, $charset = 'latin1')
 	{
-		$this->dbApi = new Database\DatabaseController();
+		$this->dbApi = new DatabaseController();
 		if (!is_null($type) && !is_null($dsn)) {
 			$this->dbApi->setup($type, $dsn);
 			// default charset is latin1 for mysql
