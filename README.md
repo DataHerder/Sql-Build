@@ -1,15 +1,6 @@
 # SQL Builder BETA
-## An Object Based Database Query Library
-
-### Documentation does not exist.  Documentation will be uploaded and hosted
-
-### Version 0.9
-
-### Significant Changes
-
-* Increased Simplicity
-* Quick Shorthands
-* Embed mysql functions in select without calling SqlExpression
+## An OOP Approach to Queries
+### Version 0.0.9
 
 ### Example Usage:
 ```php
