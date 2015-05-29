@@ -20,6 +20,10 @@ class Sql {
 
 
 	/**
+	 * Example use:
+	 *
+	 * __construct('mysql','host=localhost dbname=[dbname] user=root password=[password]', 'utf-8')
+	 *
 	 * @param null $type
 	 * @param null $dsn
 	 * @param string $charset
@@ -34,7 +38,24 @@ class Sql {
 		}
 	}
 
+	public function describe($table_name = '')
+	{
+		if (!is_string($table_name) || $table_name == '') {
+			throw new SqlException('Request table schema for given table requires table name to be a string value');
+		}
+		// don't escape for now for brevity
+		// --TODO ESCAPE TABLE NAME
+		$data = $this->dbApi->exec("DESCRIBE `".$table_name."`");
+		return $data;
+	}
 
+	public function changeDb($db = '')
+	{
+		if (!is_string($db) || $db == '') {
+			throw new SqlException('Changing the database requires the database as a string value');
+		}
+		$this->dbApi->changeDb($db);
+	}
 	/**
 	 * The configuration method for assigning control variables
 	 *
@@ -52,6 +73,7 @@ class Sql {
 	}
 
 	/**
+	 *
 	 * @param $type
 	 * @param $dsn
 	 */
@@ -60,6 +82,11 @@ class Sql {
 		return;
 	}
 
+
+	public function getTables()
+	{
+		return $this->dbApi->getTables();
+	}
 
 	/**
 	 * @param string $sql
@@ -117,7 +144,7 @@ class Sql {
 	{
 		// unset the object
 		$this->_unsetObj();
-		$this->sqlObj = new Statements\SqlBuilderSelect();
+		$this->sqlObj = new Statements\SqlBuilderSelect($this->dbApi);
 
 		// if the table is set, set to the object
 		if ($table != '') {
@@ -218,7 +245,7 @@ class Sql {
 		if (is_null($table) || is_null($values)) {
 			return $this;
 		} else {
-			$this->sqlObj = new Statements\SqlBuilderInsert();
+			$this->sqlObj = new Statements\SqlBuilderInsert($this->dbApi);
 			$this->sqlObj->table($table)->values($values);
 			return $this;
 		}
@@ -231,14 +258,14 @@ class Sql {
 	 * @param null $where
 	 * @return $this
 	 */
-	public function update($table = null, $values = null, $where = null)
+	public function update($table = null, $values = null, $where = null, $where_vars = null)
 	{
 		$this->_unsetObj();
 		if (is_null($table) || is_null($values)) {
 			return $this;
 		} else {
-			$this->sqlObj = new Statements\SqlBuilderUpdate();
-			$this->sqlObj->table($table)->values($values)->where($where);
+			$this->sqlObj = new Statements\SqlBuilderUpdate($this->dbApi);
+			$this->sqlObj->table($table)->values($values)->where($where, $where_vars);
 			return $this;
 		}
 	}
@@ -251,16 +278,19 @@ class Sql {
 	 * @param null $where
 	 * @return $this
 	 */
-	public function delete($table = null, $where = null)
+	public function delete($table = null, $where = null, $where_vars = null)
 	{
 		$this->_unsetObj();
 		if (is_null($table)) {
 			return $this;
 		}
 
-		$this->sqlObj = new Statements\SqlBuilderDelete();
+		$this->sqlObj = new Statements\SqlBuilderDelete($this->dbApi);
 		if (is_null($where)) {
 			$this->sqlObj->table($table);
+		} else {
+			$this->sqlObj->table($table);
+			$this->sqlObj->where($where, $where_vars);
 		}
 		return $this;
 	}
@@ -355,18 +385,32 @@ class Sql {
 		return $this;
 	}
 
+	public function uuid()
+	{
+		$uuid = $this->raw("SELECT UUID() as uuid");
+		return $uuid[0]['uuid'];
+	}
 
 	/**
+	 * Query the object wrapper
+	 *
+	 * @param bool|array $options_or_keyindex
 	 * @return bool|array
 	 */
-	public function query()
+	public function query($options_or_keyindex = array())
 	{
 		if (is_null($this->sqlObj)) {
 			return false;
 		}
 
+		if (is_bool($options_or_keyindex)) {
+			$options = array('keyindex' => $options_or_keyindex);
+		} else {
+			$options = $options_or_keyindex;
+		}
+
 		$sql = $this->sqlObj->__toString();
-		$return_val = $this->dbApi->query($sql);
+		$return_val = $this->dbApi->query($sql, null, $options);
 		return $return_val;
 	}
 
@@ -374,7 +418,7 @@ class Sql {
 	/**
 	 * Execute a non select query
 	 *
-	 * @return bool
+	 * @return bool|array
 	 */
 	public function exec()
 	{
@@ -394,7 +438,8 @@ class Sql {
 	public function __toString()
 	{
 		if (is_object($this->sqlObj)) {
-			return $this->sqlObj->__toString();
+			$str = $this->sqlObj->__toString();
+			return $str;
 		} else {
 			return 'Nothing set.';
 		}
