@@ -15,7 +15,9 @@ class SqlBuilderInsert extends SqlBuilderAbstract {
 		$this->_values_ = null;
 	}
 
-	public function __construct(){}
+	public function __construct($dbApi){
+		$this->_dbApi_ = $dbApi;
+	}
 
 
 
@@ -55,11 +57,12 @@ class SqlBuilderInsert extends SqlBuilderAbstract {
 		$str.= "\t(".join(', ', $fields).")\n";
 		$str.= "\nVALUES\n";
 		$vals_ = array();
+
 		foreach ($this->_values_ as $v) {
 			$vals = array_values($v);
 			array_walk($vals, function(&$value){
 				if (is_string($value)) {
-					$value = "'".mysql_real_escape_string($value)."'";
+					$value = "'".$this->_dbApi_->escape($value)."'";
 				} elseif (is_null($value)) {
 					$value = "NULL";
 				} else {
@@ -69,6 +72,7 @@ class SqlBuilderInsert extends SqlBuilderAbstract {
 			});
 			$vals_[] = join(', ', $vals);
 		}
+
 		$str.="\t(".join("),\n\t(", $vals_).")";
 		return $str;
 	}

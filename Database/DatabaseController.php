@@ -27,7 +27,7 @@ class DatabaseController {
 	 * Current resource and current method are both references
 	 * from the database_connections variable
 	 *
-	 * @var resource|null
+	 * @var resource|null|\mysqli
 	 */
 	protected $current_resource = null;
 
@@ -59,14 +59,16 @@ class DatabaseController {
 	 */
 	public function __construct()
 	{
-		$this->database_methods['mysql'] = new Drivers\Mysql;
+		// we are operating on mysqli now so default to mysqli
+		$this->database_methods['mysqli'] = new Drivers\Mysql;
+		$this->current_method = $this->database_methods['mysqli'];
+		//$this->database_methods['mysql'] = new Drivers\Mysql;
 		//$this->database_methods['postgres'] = new SqlPostgresql;
 		// set current_method to mysql because it's the default
 		// careful, if you escape and set a different syntax without switching
 		// database connections, the default will remain the default and will
 		// be checked via current_method->escape(), iow: if you don't switch to postgres
 		// from mysql and set a different syntax, it will still escape with mysql
-		$this->current_method = $this->database_methods['mysql'];
 		return $this;
 	}
 
@@ -144,11 +146,13 @@ class DatabaseController {
 	 * @return string
 	 * @throws DatabaseControllerException
 	 */
-	private function parseHost($dsn)
+	private function parseHost($dsn, $return_all = false)
 	{
 		if ($dsn == '') {
-			return 'No Host Provided';
+			return false;
 		}
+		$host = '';
+		$dsn_args = array();
 		if (is_string($dsn)) {
 			$data = explode(' ', $dsn);
 			$dsn_args = array();
@@ -159,13 +163,18 @@ class DatabaseController {
 			if ( !isSet($dsn_args['host']) && !isSet($dsn_args['server'])) {
 				throw new DatabaseControllerException('Host is required in dsn when connecting to the database');
 			}
-			return $dsn_args['host'];
+			$host = $dsn_args['host'];
 		} elseif (is_array($dsn) && !isSet($dsn['host']) && !isSet($dsn['server'])) {
 			throw new DatabaseControllerException('Host is required in dsn when connecting to the database');
 		} elseif (is_array($dsn)) {
 			if (isSet($dsn['server'])) {
 				$host = $dsn['server'];
 			} else { $host = $dsn['host']; }
+			$dsn_args = $dsn;
+		}
+		if ($return_all) {
+			return array('host' => $host, 'dsn' => $dsn, 'dsn_args' => $dsn_args);
+		} else {
 			return $host;
 		}
 	}
@@ -181,6 +190,43 @@ class DatabaseController {
 		return is_resource($this->current_resource);
 	}
 
+	/**
+	 * Get the tables of the current connection
+	 * @returns array
+	 */
+	public function getTables($by_schema = false, $filter = "")
+	{
+		if (is_resource($this->current_resource)) {
+			if ($this->current_type == 'mysql') {
+
+				$tables_ = mysql_list_tables($this->current_db, $this->current_resource);
+				$tables = array();
+				while ($table = mysql_fetch_row($tables_)) {
+					$tables[] = $table[0];
+				}
+			}
+		} elseif ($this->current_type == 'mysqli') {
+
+			$rows = array();
+			if ($by_schema === true) {
+				$stmp = $this->current_resource->query(
+					"SELECT * FROM INFORMATION_SCHEMA.TABLE WHERE TABLE_SCHEMA LIKE '".$this->current_resource->real_escape_string($filter)."'"
+				);
+				while ($row = $stmp->fetch_assoc()) {
+					// give a lot of data back
+					$rows[] = $row;
+				}
+			} else {
+				$stmp = $this->current_resource->query("SHOW TABLES");
+				while($row = $stmp->fetch_assoc()) {
+					// format it nice coming from mysql
+					$rows[] = array_values($row)[0];
+				}
+			}
+			return $rows;
+		}
+		return array();
+	}
 
 	/**
 	 * Setup the connection
@@ -197,7 +243,10 @@ class DatabaseController {
 			throw new DatabaseControllerException('Type and / or Dsn is empty on setup');
 		}
 		if (is_string($dsn)) {
-			$host = $this->parseHost($dsn);
+			$dsn_data = $this->parseHost($dsn, true);
+			$host = $dsn_data['host'];
+			$this->current_host = $host;
+			$this->current_db = $dsn_data['dsn_args']['dbname'];
 		}
 
 		if (is_array($type)) {
@@ -217,7 +266,7 @@ class DatabaseController {
 					}
 					elseif (is_string($dsn)){
 						if( !$this->setConnection($type, $dsn) ){
-							throw new DatabaseControllerException('Unable to connect to database for '. $type.' on dsn: '.$this->parseHost($dsn[$i]));
+							throw new DatabaseControllerException('Unable to connect to database for '. $type.' on dsn: '.$this->parseHost($dsn[$c]));
 						}
 					}
 				}
@@ -234,6 +283,8 @@ class DatabaseController {
 		}
 	}
 
+	protected $current_type = null;
+	protected $current_host = null;
 
 	/**
 	 * Sets up the connection to the database and
@@ -247,14 +298,26 @@ class DatabaseController {
 	 */
 	protected function setConnection($type, $dsn)
 	{
-		$host = $this->parseHost($dsn);
+		$dsn_data = $this->parseHost($dsn, true);
+		$host = $dsn_data['host'];
+		$this->current_db = $dsn_data['dsn_args']['dbname'];
 		if (!is_string($type)) {
 			return false;
 		}
 		$resource = $this->database_methods[$type]->connect($dsn);
-		if ( !is_resource($resource) ) {
-			throw new DatabaseControllerException('Resource not returned on setup.  Check that your database is running, or your dsn');
+		if ( !is_resource($resource) && $type == 'mysql') {
+			throw new DatabaseControllerException(
+				'Resource not returned on setup.  Check that your database is running, or your dsn: ' . mysql_error()
+			);
+		} elseif ($type == 'mysqli' && $resource->connect_errno) {
+			throw new DatabaseControllerException(
+				'Resource not returned on setup.  Check that your database is running, or your dsn: '
+				.$resource->connect_errno.' - '
+				.$resource->connect_error
+			);
 		}
+		$this->current_type = $type;
+		$this->current_host = $host;
 		$this->database_connections[$type][$host]['resource'] = $resource;
 		$this->database_connections[$type][$host]['dsn'] = $dsn;
 		$this->current_method =& $this->database_methods[$type];
@@ -262,6 +325,22 @@ class DatabaseController {
 		return true;
 	}
 
+	protected $current_db = null;
+	public function changeDB($db)
+	{
+		$resource = $this->database_connections[$this->current_type][$this->current_host]['resource'];
+		if ($this->current_type == 'mysql') {
+			if (!@mysql_select_db($db, $resource)) {
+				throw new DatabaseControllerException('Error in changing DB: ' . mysql_error());
+			}
+		} elseif ($this->current_type == 'mysqli') {
+			$resource->select_db($db);
+		} elseif ($this->current_type == 'postgres') {
+			throw new DatabaseControllerException('Not supported for postgres at this time');
+		}
+		$this->current_db = $db;
+		return true;
+	}
 
 	/**
 	 * Ensure to destroy the connection to the database
@@ -270,19 +349,21 @@ class DatabaseController {
 	 */
 	public function __destruct()
 	{
-		unset($this->current_resource);
 		foreach( $this->database_connections as $type => $database ) {
 			foreach ( $database as $host => $connect_info ) {
 				if ( $type == 'mysql' ) {
 					@mysql_close($connect_info['resource']);
-				}
-				elseif ( $type == 'postgres' ) {
+				} elseif ($type == 'mysqli') {
+					//$connect_info['resource']->close();
+				} elseif ( $type == 'postgres' ) {
 					@pg_close($connect_info['resource']);
 				}
 			}
 		}
+		//dbg_array($this->current_resource);
+		//$this->current_resource->close();
+		//unset($this->current_resource);
 	}
-
 
 }
 

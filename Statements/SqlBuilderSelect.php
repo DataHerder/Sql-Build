@@ -27,12 +27,13 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 	}
 
 
-	public function __construct()
+	public function __construct($dbApi)
 	{
 		$this->range = range('a', 'z');
 		$this->config = array(
 			'no_parenth' => false,
 		);
+		$this->_dbApi_ = $dbApi;
 	}
 
 	/**
@@ -55,8 +56,8 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 				foreach ($table_args as $i => $args) {
 					// if there is an alias, assign it
 					if (preg_match("/ as /i", $args)) {
-						list($field_name, $table_alias) = explode(" as ", $args);
-						$new_args[$table_alias] = $field_name;
+						list($field_name, $table_alias) = preg_split("/\bas\b/i", $args);
+						$new_args[trim($table_alias)] = trim($field_name);
 					} else {
 						// otherwise assign the range by $i
 						$new_args[$this->range[$i]] = $args;
@@ -66,7 +67,13 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 				$table_args = $new_args;
 			} else {
 				// assign the first range as alias
-				$table_args[$this->range[0]] = $table;
+				if (preg_match("/ as /i", $table)) {
+					list($table_name, $table_alias) = preg_split("/\bas\b/i", $table);
+					$this->range[0] = trim($table_alias);
+				} else {
+					$table_name = $table;
+				}
+				$table_args[$this->range[0]] = trim($table_name);
 			}
 
 		} elseif (is_array($table)) {
@@ -169,12 +176,11 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 			if (is_null($val)) {
 				$where = preg_replace("/\?/", 'NULL', $where, 1);
 			} elseif (is_string($val)) {
-				$where = preg_replace("/\?/", mysql_real_escape_string($val), $where, 1);
+				$where = preg_replace("/\?/", $this->_dbApi_->escape($val), $where, 1);
 			} elseif (is_int($val)) {
 				$where = preg_replace("/\?/", $val, $where, 1);
 			} elseif (is_array($val)) {
 				foreach ($val as $where_str) {
-					//$where = preg_replace("/\?/", mysql_real_escape_string($where_str), $where);
 					$where = $this->where($where, $where_str, true);
 				}
 			}
@@ -182,7 +188,6 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 		if ($return_val === true) {
 			return $where;
 		}
-
 		$this->_where_[] = $where;
 		return $this;
 	}
@@ -190,7 +195,7 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 
 	public function having($have_statement = null)
 	{
-		if (is_string($have_statement)) {
+		if (!is_string($have_statement)) {
 			throw new SqlBuilderSelectException('Having statement expects string value.');
 		}
 

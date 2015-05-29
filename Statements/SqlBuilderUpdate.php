@@ -17,7 +17,9 @@ class SqlBuilderUpdate extends SqlBuilderAbstract {
 		$this->_values_ = null;
 	}
 
-	public function __construct(){}
+	public function __construct($dbApi){
+		$this->_dbApi_ = $dbApi;
+	}
 
 	public function table($table = null)
 	{
@@ -62,10 +64,10 @@ class SqlBuilderUpdate extends SqlBuilderAbstract {
 			if (is_null($val)) {
 				$where = preg_replace("/\?/", 'NULL', $where);
 			} elseif (is_string($val)) {
-				$where = preg_replace("/\?/", mysql_real_escape_string($val), $where);
+				$where = preg_replace("/\?/", $this->_dbApi_->escape($val), $where, 1);
 			} elseif (is_array($val)) {
 				foreach ($val as $where_str) {
-					$where = preg_replace("/\?/", mysql_real_escape_string($where_str), $where);
+					$where = preg_replace("/\?/", $this->_dbApi_->escape($where_str), $where, 1);
 				}
 			}
 		}
@@ -83,7 +85,7 @@ class SqlBuilderUpdate extends SqlBuilderAbstract {
 		$updates = array();
 		foreach ($this->_values_[0] as $key => $value) {
 			if (is_string($value)) {
-				$value = "'".mysql_real_escape_string($value)."'";
+				$value = "'".$this->_dbApi_->escape($value)."'";
 			} elseif (is_null($value)) {
 				$value = "NULL";
 			} else {
