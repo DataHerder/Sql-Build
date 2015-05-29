@@ -1,23 +1,11 @@
 # SQL Builder BETA
-## An Object Based Database Query Library
-
-### Documentation does not exist.  Documentation will be uploaded and hosted
-
-### Version 0.9
-
-### Significant Changes
-
-* Increased Simplicity
-* Quick Shorthands
-* Embed mysql functions in select without calling SqlExpression
-
-###downside
-* No longer supports PostgreSQL
+## An OOP Approach to Queries
+### Version 0.0.9
 
 ### Example Usage:
 ```php
 // create the database connection
-$Sql = new \SqlBuilder\Sql('mysql', 'host=localhost database=your_database user=root password=')
+$Sql = new \SqlBuilder\Sql('mysqli', 'host=localhost database=your_database user=root password=')
 // set the charset to utf8
 $Sql->setCharset('utf8');
 
@@ -26,7 +14,7 @@ try {
 	$Sql->select()
 		->table('my_table')
 		->fields('*')
-		->where("name = '?' AND age = ?", array('paul', 33))
+		->where("name = '?' AND age = ?", array('paul', 4000000000))
 	;
 	// check that it is correct
 	print $Sql;
@@ -42,5 +30,5 @@ try {
 }
 
 # NOTE that the above select query can also be written like this as a shorthand:
-$Sql->select('my_table', '*', "name = '?' AND age = ?", array('paul', 33));
+$Sql->select('my_table', '*', "name = '?' AND age = ?", array('paul', '4000000000'));
 ```
