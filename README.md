@@ -36,13 +36,8 @@ Example:
 $Sql = new \SqlBuilder\Sql('mysqli', 'localhost', 'root', '[password]', 'test', 'utf8');
 ```
 
-### Example Usage:
+### Queries - Select:
 ```php
-// create the database connection
-$Sql = new \SqlBuilder\Sql('mysqli', 'host=localhost database=your_database user=root password=')
-// set the charset to utf8
-$Sql->setCharset('utf8');
-
 try {
 	// create the Sql query
 	$Sql->select()
