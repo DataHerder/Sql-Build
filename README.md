@@ -5,7 +5,7 @@
 ### Example Usage:
 ```php
 // create the database connection
-$Sql = new \SqlBuilder\Sql('mysql', 'host=localhost database=your_database user=root password=')
+$Sql = new \SqlBuilder\Sql('mysqli', 'host=localhost database=your_database user=root password=')
 // set the charset to utf8
 $Sql->setCharset('utf8');
 
