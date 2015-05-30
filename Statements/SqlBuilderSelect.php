@@ -128,14 +128,14 @@ class SqlBuilderSelect extends SqlBuilderAbstract {
 		$field_args = array();
 		if (is_string($fields)) {
 			// if there are multiple strings with ,
-			if (strpos($fields, ',') !== false) {
+			if (strpos($fields, ',') !== false || strpos($fields, '.') !== false) {
 				// wipe out postgres or mysql quotes
 				$fields = preg_replace('/(`|")/', '', $fields);
 				$fields = explode(",", $fields);
 				foreach ($fields as $field) {
 					// if there is an alias
 					$field = trim($field);
-					if (preg_match("/\w+\.\w+/", $field)) {
+					if (preg_match("/\w+\.[\w\*]+/", $field)) {
 						list($alias, $field) = explode(".", $field);
 						$field_args[$alias][] = $field;
 					} else {
