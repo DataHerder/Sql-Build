@@ -30,6 +30,8 @@
 
 namespace SqlBuilder;
 
+use SqlBuilder\Database\DatabaseController;
+
 class Sql {
 
 

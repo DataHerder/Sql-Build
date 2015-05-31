@@ -156,13 +156,20 @@ class Mysql extends Abstracts\Driver {
 			$resource = $this->current_resource;
 		}
 		if (preg_match("@insert@i", $sql)) {
+			$return_id = true;
+		} else {
+			$return_id = false;
 		}
 		$stmp = $resource->query($sql);
 		if (!is_object($stmp) && $stmp === false) {
 			$this->errorOut();
 		}
 		if ($stmp === true) {
-			return $resource->affected_rows;
+			if ($return_id) {
+				return $resource->insert_id;
+			} else {
+				return $resource->affected_rows;
+			}
 		} else {
 			return $this->query(false, false, $options + array('stmp' => $stmp));
 		}
